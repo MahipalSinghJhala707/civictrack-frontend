@@ -1,11 +1,32 @@
 import axios from 'axios';
 
+// Ensure HTTPS in production
+const getBaseURL = () => {
+  const envURL = import.meta.env.VITE_API_BASE_URL;
+  if (envURL) {
+    // If URL is provided, use it as-is (should be HTTPS in production)
+    return envURL;
+  }
+  
+  // In development, allow HTTP for localhost
+  if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
+    return 'http://localhost:8080';
+  }
+  
+  // In production, enforce HTTPS (adjust port/domain as needed)
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'https:';
+  const hostname = window.location.hostname;
+  const port = hostname === 'localhost' ? ':8080' : '';
+  return `${protocol}//${hostname}${port}`;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: getBaseURL(),
   withCredentials: true, // Important for cookie-based auth
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 second timeout
 });
 
 // Request interceptor

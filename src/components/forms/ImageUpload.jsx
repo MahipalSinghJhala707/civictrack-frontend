@@ -25,13 +25,32 @@ const ImageUpload = ({ maxImages = 5, maxSizeMB = 5, onUpload, existingImages = 
       return;
     }
 
-    // Validate file types
+    // Validate file types by MIME type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     const invalidFiles = files.filter(
-      (file) => !file.type.startsWith('image/')
+      (file) => !file.type.startsWith('image/') || !allowedTypes.includes(file.type.toLowerCase())
     );
     if (invalidFiles.length > 0) {
       const fileNames = invalidFiles.map(f => f.name).join(', ');
-      setError(`The following file(s) are not images: ${fileNames}. Please select only image files (JPG, PNG, etc.).`);
+      setError(`The following file(s) are not valid images: ${fileNames}. Please select only image files (JPG, PNG, GIF, or WebP).`);
+      return;
+    }
+    
+    // Additional validation: Check file extensions match MIME types (basic check)
+    const extensionMismatch = files.filter(file => {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      const mimeToExt = {
+        'image/jpeg': ['jpg', 'jpeg'],
+        'image/png': ['png'],
+        'image/gif': ['gif'],
+        'image/webp': ['webp'],
+      };
+      const allowedExts = mimeToExt[file.type.toLowerCase()] || [];
+      return extension && !allowedExts.includes(extension);
+    });
+    
+    if (extensionMismatch.length > 0) {
+      setError('Some files have mismatched file extensions and MIME types. Please verify your files are valid images.');
       return;
     }
 
