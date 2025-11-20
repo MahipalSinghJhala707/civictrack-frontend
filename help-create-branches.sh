@@ -212,11 +212,33 @@ git checkout "$BASE_BRANCH" -- src/pages/admin/AuthorityUserManagement.jsx
 git add src/pages/admin/AuthorityUserManagement.jsx
 git commit -m "feat: add authority-user linking management"
 
+# Push all branches to origin
+echo ""
+echo "📤 Pushing branches to origin..."
+branches=(
+  "feature/pwa-support"
+  "feature/authentication-system"
+  "feature/core-layout-components"
+  "feature/issue-management"
+  "feature/flagging-system"
+  "feature/authority-features"
+  "feature/admin-features"
+)
+
+for branch in "${branches[@]}"; do
+  if git rev-parse --verify "$branch" >/dev/null 2>&1; then
+    echo "  Pushing $branch..."
+    git push -u origin "$branch" 2>/dev/null || echo "    ⚠️  Failed to push $branch (may already exist)"
+  else
+    echo "  ⚠️  Branch $branch not found, skipping..."
+  fi
+done
+
 # Return to complete-frontend
 git checkout "$BASE_BRANCH"
 
 echo ""
-echo "✅ Created 7 logical feature branches with small, focused commits:"
+echo "✅ Created and pushed 7 logical feature branches with small, focused commits:"
 echo "   1. feature/pwa-support (2-3 commits)"
 echo "   2. feature/authentication-system (6 commits)"
 echo "   3. feature/core-layout-components (8 commits)"
@@ -230,8 +252,7 @@ echo ""
 echo "📝 Next steps:"
 echo "   1. Review each branch: git checkout <branch-name>"
 echo "   2. Check commit history: git log --oneline"
-echo "   3. Push branches: git push origin <branch-name>"
-echo "   4. Create PRs from feature branches to main"
+echo "   3. Create PRs manually from feature branches to main on GitHub/GitLab"
 echo ""
 echo "⚠️  Note: Some interconnected changes (like flagging in IssueCard)"
 echo "   may need manual review and adjustment."
