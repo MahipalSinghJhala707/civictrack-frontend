@@ -14,7 +14,21 @@ echo "Note: Infrastructure setup PR is already done, skipping those files"
 echo ""
 
 # Make sure we're on development to start
-git checkout "$DEVELOPMENT_BRANCH" 2>/dev/null || { echo "❌ Error: development branch doesn't exist. Please create it first or check branch name."; exit 1; }
+echo "📂 Checking out $DEVELOPMENT_BRANCH branch..."
+if git checkout "$DEVELOPMENT_BRANCH" 2>/dev/null; then
+  echo "✅ On $DEVELOPMENT_BRANCH branch"
+  # Make sure we're up to date
+  git pull origin "$DEVELOPMENT_BRANCH" 2>/dev/null || echo "Note: Could not pull from origin (may not exist yet)"
+else
+  echo "⚠️  Warning: $DEVELOPMENT_BRANCH branch not found locally."
+  echo "   Trying to create it from main..."
+  if git checkout -b "$DEVELOPMENT_BRANCH" main 2>/dev/null || git checkout -b "$DEVELOPMENT_BRANCH" 2>/dev/null; then
+    echo "✅ Created $DEVELOPMENT_BRANCH branch"
+  else
+    echo "❌ Error: Could not create or checkout $DEVELOPMENT_BRANCH branch"
+    exit 1
+  fi
+fi
 
 # 1. PWA Support (service worker registration, if not in infrastructure)
 echo "📦 Creating feature/pwa-support..."
