@@ -33,3 +33,8 @@ dist-ssr
 .env
 !.env.sample
 package-lock.json
+
+# Documentation files (not committed)
+BRANCH_ORGANIZATION.md
+PR_ORGANIZATION.md
+DEBUGGING_GUIDE.md
