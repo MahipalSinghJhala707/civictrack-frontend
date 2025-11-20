@@ -4,6 +4,7 @@ import { issueService } from '../../services/issue.service';
 import IssueCard from '../../components/issue/IssueCard';
 import { handleApiError } from '../../utils/errorHandler';
 import { formatDate } from '../../utils/helpers';
+import { logger } from '../../utils/logger';
 
 const FlaggedReports = () => {
   const navigate = useNavigate();
@@ -21,18 +22,18 @@ const FlaggedReports = () => {
       setLoading(true);
       setError('');
       const response = await issueService.listFlaggedReports();
-      console.log('Flagged reports response:', response);
+      logger.log('Flagged reports response:', response);
       
       const reportsData = response.data?.data?.reports || 
                          response.data?.reports || 
                          response.data?.data || 
                          [];
       
-      console.log('Loaded flagged reports:', reportsData);
+      logger.log('Loaded flagged reports:', reportsData);
       setReports(reportsData);
     } catch (err) {
-      console.error('Failed to load flagged reports:', err);
-      console.error('Error response:', err.response);
+      logger.error('Failed to load flagged reports:', err);
+      logger.error('Error response:', err.response);
       setError('Failed to load flagged reports: ' + handleApiError(err));
     } finally {
       setLoading(false);
@@ -54,7 +55,7 @@ const FlaggedReports = () => {
       
       alert('Report hidden successfully. It will no longer appear in public listings.');
     } catch (err) {
-      console.error('Failed to hide report:', err);
+      logger.error('Failed to hide report:', err);
       const errorMessage = handleApiError(err);
       setError(`Failed to hide report: ${errorMessage}`);
       alert(`Failed to hide report: ${errorMessage}`);

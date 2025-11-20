@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -38,13 +39,13 @@ const Login = () => {
 
     try {
       const response = await login(email, password, role);
-      console.log('Login successful, response:', response);
+      logger.log('Login successful, response:', response);
       // Wait a bit for auth state to update
       setTimeout(() => {
         navigate('/', { replace: true });
       }, 100);
     } catch (err) {
-      console.error('Login failed:', err);
+      logger.error('Login failed:', err);
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       setLoading(false);

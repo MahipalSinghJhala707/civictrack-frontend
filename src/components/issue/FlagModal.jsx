@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { logger } from '../../utils/logger';
 
 const FlagModal = ({ isOpen, onClose, onConfirm, reportId, existingFlag }) => {
   const [flags, setFlags] = useState([]);
@@ -24,7 +25,7 @@ const FlagModal = ({ isOpen, onClose, onConfirm, reportId, existingFlag }) => {
     try {
       setLoading(true);
       const response = await api.get('/api/issues/flags');
-      console.log('Flags API response:', response);
+      logger.log('Flags API response:', response);
       
       // Extract flags from response
       const flagsData = response.data?.data?.flags || 
@@ -32,17 +33,17 @@ const FlagModal = ({ isOpen, onClose, onConfirm, reportId, existingFlag }) => {
                        response.data?.data || 
                        [];
       
-      console.log('Loaded flags:', flagsData);
+      logger.log('Loaded flags:', flagsData);
       
       if (flagsData.length > 0) {
         setFlags(flagsData);
       } else {
-        console.warn('No flags returned from API');
+        logger.warn('No flags returned from API');
         setError('No flag types available');
       }
     } catch (err) {
-      console.error('Failed to load flags:', err);
-      console.error('Error response:', err.response?.data);
+      logger.error('Failed to load flags:', err);
+      logger.error('Error response:', err.response?.data);
       setError('Failed to load flag types. Please try again.');
     } finally {
       setLoading(false);

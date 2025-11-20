@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/common/StatusBadge';
 import { formatDate } from '../utils/helpers';
 import { handleApiError } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
 
 const IssueDetail = () => {
   const { id } = useParams();
@@ -24,13 +25,13 @@ const IssueDetail = () => {
   const loadReport = async () => {
     try {
       setLoading(true);
-      console.log('Loading report with ID:', id);
+      logger.log('Loading report with ID:', id);
       
       // Try the direct endpoint first
       try {
         const response = await issueService.getReport(id);
-        console.log('Report response:', response);
-        console.log('Report data:', response.data);
+        logger.log('Report response:', response);
+        logger.log('Report data:', response.data);
         
         // Try different possible response structures
         const reportData = response.data?.data?.report || 
@@ -38,7 +39,7 @@ const IssueDetail = () => {
                           response.data?.data || 
                           response.data;
         
-        console.log('Extracted report:', reportData);
+        logger.log('Extracted report:', reportData);
         
         if (reportData && reportData.id) {
           setReport(reportData);
@@ -46,33 +47,33 @@ const IssueDetail = () => {
           return;
         }
       } catch (directErr) {
-        console.log('Direct endpoint failed, trying list endpoint:', directErr);
+        logger.log('Direct endpoint failed, trying list endpoint:', directErr);
       }
       
       // Fallback: Get from list and find by ID
-      console.log('Fetching from list endpoint as fallback...');
+      logger.log('Fetching from list endpoint as fallback...');
       const listResponse = await issueService.listReports();
-      console.log('List response:', listResponse);
+      logger.log('List response:', listResponse);
       
       const reports = listResponse.data?.data?.reports || 
                      listResponse.data?.reports || 
                      listResponse.data?.data || 
                      [];
       
-      console.log('All reports:', reports);
+      logger.log('All reports:', reports);
       const foundReport = reports.find(r => r.id === parseInt(id) || r.id === id);
       
       if (foundReport) {
-        console.log('Found report:', foundReport);
+        logger.log('Found report:', foundReport);
         setReport(foundReport);
         setStatus(foundReport.status);
       } else {
-        console.error('Report not found in list. ID:', id, 'Available IDs:', reports.map(r => r.id));
+        logger.error('Report not found in list. ID:', id, 'Available IDs:', reports.map(r => r.id));
       }
     } catch (err) {
-      console.error('Failed to load report:', err);
-      console.error('Error response:', err.response);
-      console.error('Error details:', err.response?.data);
+      logger.error('Failed to load report:', err);
+      logger.error('Error response:', err.response);
+      logger.error('Error details:', err.response?.data);
     } finally {
       setLoading(false);
     }
@@ -109,7 +110,7 @@ const IssueDetail = () => {
       
       alert('Flag deleted successfully.');
     } catch (err) {
-      console.error('Failed to delete flag:', err);
+      logger.error('Failed to delete flag:', err);
       alert('Failed to delete flag: ' + handleApiError(err));
     } finally {
       setDeletingFlagId(null);

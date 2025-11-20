@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { issueService } from '../../services/issue.service';
 import IssueCard from '../../components/issue/IssueCard';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const AssignedIssues = () => {
   const navigate = useNavigate();
@@ -19,8 +20,8 @@ const AssignedIssues = () => {
       setLoading(true);
       const params = statusFilter ? { status: statusFilter } : {};
       const response = await issueService.listReports(params);
-      console.log('API Response:', response);
-      console.log('Response data:', response.data);
+      logger.log('API Response:', response);
+      logger.log('Response data:', response.data);
       
       // Try different possible response structures
       const reports = response.data?.data?.reports || 
@@ -28,11 +29,11 @@ const AssignedIssues = () => {
                       response.data?.data || 
                       [];
       
-      console.log('Extracted reports:', reports);
+      logger.log('Extracted reports:', reports);
       setReports(reports);
     } catch (err) {
-      console.error('Failed to load reports:', err);
-      console.error('Error details:', err.response?.data);
+      logger.error('Failed to load reports:', err);
+      logger.error('Error details:', err.response?.data);
     } finally {
       setLoading(false);
     }

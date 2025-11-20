@@ -1,4 +1,5 @@
 import api from './api';
+import { logger } from '../utils/logger';
 
 export const issueService = {
   // Categories
@@ -50,7 +51,7 @@ export const issueService = {
               // If that also fails, try admin endpoint
               return api.delete(`/api/admin/flags/${flagId}`)
                 .catch((err3) => {
-                  console.error('Failed to delete flag with all endpoints:', err3);
+                        logger.error('Failed to delete flag with all endpoints:', err3);
                   throw new Error(`The API endpoint for deleting flags was not found. Please ensure the backend supports DELETE /api/issues/reports/${reportId}/flags/${flagId} or DELETE /api/admin/flags/${flagId}`);
                 });
             });
@@ -69,7 +70,7 @@ export const issueService = {
         if (err.response?.status === 404 || err.response?.status === 405) {
           return api.post(`/api/issues/reports/${reportId}/hide`)
             .catch((err2) => {
-              console.error('Failed to hide report with both endpoints:', err2);
+                    logger.error('Failed to hide report with both endpoints:', err2);
               throw new Error(`The API endpoint for hiding reports was not found. Please ensure the backend supports PATCH /api/issues/reports/${reportId} with { is_hidden: true } or POST /api/issues/reports/${reportId}/hide`);
             });
         }

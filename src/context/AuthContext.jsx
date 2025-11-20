@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/auth.service';
+import { logger } from '../utils/logger';
 
 const AuthContext = createContext(null);
 
@@ -14,15 +15,15 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const response = await authService.getCurrentUser();
-      console.log('Auth check response:', response);
-      console.log('User data:', response.data?.user || response.user);
+      logger.log('Auth check response:', response);
+      logger.log('User data:', response.data?.user || response.user);
       
       // Handle different possible response structures
       const userData = response.data?.user || response.user || response.data;
       setUser(userData);
     } catch (error) {
-      console.error('Auth check failed:', error);
-      console.error('Error response:', error.response?.data);
+      logger.error('Auth check failed:', error);
+      logger.error('Error response:', error.response?.data);
       setUser(null);
     } finally {
       setLoading(false);
@@ -31,29 +32,29 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password, role) => {
     try {
-      console.log('Login attempt:', { email, role });
+      logger.log('Login attempt:', { email, role });
       const response = await authService.login(email, password, role);
-      console.log('Login response:', response);
+      logger.log('Login response:', response);
       await checkAuth();
       return response;
     } catch (error) {
-      console.error('Login error:', error);
-      console.error('Login error response:', error.response?.data);
+      logger.error('Login error:', error);
+      logger.error('Login error response:', error.response?.data);
       throw error;
     }
   };
 
   const register = async (data) => {
     try {
-      console.log('Registering user:', data);
+      logger.log('Registering user:', data);
       const response = await authService.register(data);
-      console.log('Register response:', response);
+      logger.log('Register response:', response);
       await checkAuth();
-      console.log('Auth check after registration completed');
+      logger.log('Auth check after registration completed');
       return response;
     } catch (error) {
-      console.error('Registration error:', error);
-      console.error('Registration error response:', error.response?.data);
+      logger.error('Registration error:', error);
+      logger.error('Registration error response:', error.response?.data);
       throw error;
     }
   };
@@ -65,28 +66,28 @@ export const AuthProvider = ({ children }) => {
 
   const getUserRole = () => {
     if (!user) {
-      console.log('No user found');
+      logger.log('No user found');
       return null;
     }
     
-    console.log('User object:', user);
-    console.log('User roles:', user.roles);
+    logger.log('User object:', user);
+    logger.log('User roles:', user.roles);
     
     // Handle different possible role structures
     if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
       // If roles is an array of objects with 'name' property
       const roleName = user.roles[0]?.name || user.roles[0];
-      console.log('Extracted role:', roleName);
+      logger.log('Extracted role:', roleName);
       return roleName;
     }
     
     // If user has a direct role property
     if (user.role) {
-      console.log('Direct role property:', user.role);
+      logger.log('Direct role property:', user.role);
       return user.role;
     }
     
-    console.log('No role found for user');
+    logger.log('No role found for user');
     return null;
   };
 

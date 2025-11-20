@@ -1,4 +1,5 @@
 import api from './api';
+import { logger } from '../utils/logger';
 
 export const authService = {
   register: async (data) => {
@@ -23,12 +24,12 @@ export const authService = {
   getCurrentUser: async () => {
     try {
       const response = await api.get('/api/auth/me');
-      console.log('getCurrentUser raw response:', response);
-      console.log('getCurrentUser response.data:', response.data);
+      logger.log('getCurrentUser raw response:', response);
+      logger.log('getCurrentUser response.data:', response.data);
       return response.data;
     } catch (error) {
-      console.error('getCurrentUser error:', error);
-      console.error('getCurrentUser error response:', error.response);
+      logger.error('getCurrentUser error:', error);
+      logger.error('getCurrentUser error response:', error.response);
       throw error;
     }
   },

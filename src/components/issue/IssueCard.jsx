@@ -5,6 +5,7 @@ import StatusBadge from '../common/StatusBadge';
 import { formatDate, truncateText } from '../../utils/helpers';
 import { issueService } from '../../services/issue.service';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 import FlagModal from './FlagModal';
 
 const IssueCard = ({ report, onUpdate }) => {
@@ -27,7 +28,7 @@ const IssueCard = ({ report, onUpdate }) => {
       });
       onUpdate?.();
     } catch (error) {
-      console.error('Failed to update status:', error);
+      logger.error('Failed to update status:', error);
       alert('Failed to update status');
     }
   };
@@ -38,24 +39,24 @@ const IssueCard = ({ report, onUpdate }) => {
 
   const handleFlagConfirm = async (flagId) => {
     try {
-      console.log('Flagging report:', report.id, 'with flagId:', flagId);
-      console.log('Flag request:', { reportId: report.id, flagId });
+      logger.log('Flagging report:', report.id, 'with flagId:', flagId);
+      logger.log('Flag request:', { reportId: report.id, flagId });
       
       // If user has already flagged this report, delete the old flag first
       if (userFlag) {
-        console.log('User has already flagged this report. Deleting old flag:', userFlag.id);
+        logger.log('User has already flagged this report. Deleting old flag:', userFlag.id);
         try {
           await issueService.deleteFlag(userFlag.id, report.id);
-          console.log('Old flag deleted successfully');
+          logger.log('Old flag deleted successfully');
         } catch (deleteError) {
-          console.error('Failed to delete old flag:', deleteError);
+          logger.error('Failed to delete old flag:', deleteError);
           // Continue anyway - might be a different flag or backend handles it
         }
       }
       
       // Create the new flag
       const response = await issueService.flagReport(report.id, flagId);
-      console.log('Flag response:', response);
+      logger.log('Flag response:', response);
       
       setShowFlagModal(false);
       
@@ -70,10 +71,10 @@ const IssueCard = ({ report, onUpdate }) => {
         onUpdate();
       }
     } catch (error) {
-      console.error('Failed to flag report:', error);
-      console.error('Flag error response:', error.response);
-      console.error('Flag error status:', error.response?.status);
-      console.error('Flag error data:', error.response?.data);
+      logger.error('Failed to flag report:', error);
+      logger.error('Flag error response:', error.response);
+      logger.error('Flag error status:', error.response?.status);
+      logger.error('Flag error data:', error.response?.data);
       
       const errorMessage = handleApiError(error);
       alert(`Failed to flag report: ${errorMessage}`);

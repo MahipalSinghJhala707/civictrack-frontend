@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../../services/admin.service';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const AuthorityUserManagement = () => {
   const [authorityUsers, setAuthorityUsers] = useState([]);
@@ -28,7 +29,7 @@ const AuthorityUserManagement = () => {
         loadAuthorities(),
       ]);
     } catch (err) {
-      console.error('Failed to load data:', err);
+      logger.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
@@ -43,7 +44,7 @@ const AuthorityUserManagement = () => {
                            [];
       setAuthorityUsers(authUsersData);
     } catch (err) {
-      console.error('Failed to load authority users:', err);
+      logger.error('Failed to load authority users:', err);
       setFormError('Failed to load authority users: ' + handleApiError(err));
     }
   };
@@ -58,7 +59,7 @@ const AuthorityUserManagement = () => {
       );
       setUsers(authorityRoleUsers);
     } catch (err) {
-      console.error('Failed to load users:', err);
+      logger.error('Failed to load users:', err);
     }
   };
 
@@ -67,7 +68,7 @@ const AuthorityUserManagement = () => {
       const response = await adminService.listAuthorities();
       setAuthorities(response.data?.data?.authorities || []);
     } catch (err) {
-      console.error('Failed to load authorities:', err);
+      logger.error('Failed to load authorities:', err);
     }
   };
 
@@ -117,7 +118,7 @@ const AuthorityUserManagement = () => {
       setFormData({ userId: '', authorityId: '' });
       loadData();
     } catch (err) {
-      console.error('Failed to save authority user:', err);
+      logger.error('Failed to save authority user:', err);
       setFormError('Failed to save: ' + handleApiError(err));
     }
   };

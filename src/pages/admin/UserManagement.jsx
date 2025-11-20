@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../../services/admin.service';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -37,7 +38,7 @@ const UserManagement = () => {
       const response = await adminService.listAuthorities();
       setAuthorities(response.data?.data?.authorities || []);
     } catch (err) {
-      console.error('Failed to load authorities:', err);
+      logger.error('Failed to load authorities:', err);
     }
   };
 
@@ -49,7 +50,7 @@ const UserManagement = () => {
                         response.data?.data || 
                         []);
     } catch (err) {
-      console.error('Failed to load authority users:', err);
+      logger.error('Failed to load authority users:', err);
     }
   };
 
@@ -68,12 +69,12 @@ const UserManagement = () => {
           setAvailableRoles(ROLES);
         }
       } catch (err) {
-        console.log('Roles endpoint not available, using default roles');
+        logger.log('Roles endpoint not available, using default roles');
         // Use default roles if endpoint doesn't exist
         setAvailableRoles(ROLES);
       }
     } catch (err) {
-      console.error('Failed to load roles:', err);
+      logger.error('Failed to load roles:', err);
       setAvailableRoles(ROLES);
     }
   };
@@ -112,7 +113,7 @@ const UserManagement = () => {
         return currentRoles.length > 0 ? currentRoles : ROLES;
       });
     } catch (err) {
-      console.error('Failed to load users:', handleApiError(err));
+      logger.error('Failed to load users:', handleApiError(err));
     } finally {
       setLoading(false);
     }
@@ -181,9 +182,9 @@ const UserManagement = () => {
     
     try {
       if (editingUser) {
-        console.log('Updating user:', editingUser.id);
-        console.log('User data:', { name: formData.name, email: formData.email });
-        console.log('Role IDs:', formData.roleIds);
+        logger.log('Updating user:', editingUser.id);
+        logger.log('User data:', { name: formData.name, email: formData.email });
+        logger.log('Role IDs:', formData.roleIds);
         
         // Update user info
         try {
@@ -191,22 +192,22 @@ const UserManagement = () => {
             name: formData.name,
             email: formData.email,
           });
-          console.log('User info updated successfully');
+          logger.log('User info updated successfully');
         } catch (userErr) {
-          console.error('Failed to update user info:', userErr);
-          console.error('User update error:', userErr.response?.data);
+          logger.error('Failed to update user info:', userErr);
+          logger.error('User update error:', userErr.response?.data);
           throw userErr;
         }
         
         // Update roles
         try {
-          console.log('Updating user roles with roleIds:', formData.roleIds);
+          logger.log('Updating user roles with roleIds:', formData.roleIds);
           await adminService.updateUserRoles(editingUser.id, formData.roleIds);
-          console.log('User roles updated successfully');
+          logger.log('User roles updated successfully');
         } catch (roleErr) {
-          console.error('Failed to update user roles:', roleErr);
-          console.error('Role update error:', roleErr.response?.data);
-          console.error('Role update error response:', roleErr.response);
+          logger.error('Failed to update user roles:', roleErr);
+          logger.error('Role update error:', roleErr.response?.data);
+          logger.error('Role update error response:', roleErr.response);
           throw roleErr;
         }
 
@@ -226,17 +227,17 @@ const UserManagement = () => {
               await adminService.updateAuthorityUser(existingLink.id, {
                 authorityId: parseInt(formData.authorityId),
               });
-              console.log('Authority-user link updated successfully');
+              logger.log('Authority-user link updated successfully');
             } else {
               // Create new link
               await adminService.createAuthorityUser({
                 userId: editingUser.id,
                 authorityId: parseInt(formData.authorityId),
               });
-              console.log('Authority-user link created successfully');
+              logger.log('Authority-user link created successfully');
             }
           } catch (authErr) {
-            console.error('Failed to update authority-user link:', authErr);
+            logger.error('Failed to update authority-user link:', authErr);
             // Don't throw - role update was successful, this is secondary
           }
         } else if (hasAuthorityRole && !formData.authorityId) {
@@ -245,9 +246,9 @@ const UserManagement = () => {
           if (existingLink) {
             try {
               await adminService.deleteAuthorityUser(existingLink.id);
-              console.log('Authority-user link removed');
+              logger.log('Authority-user link removed');
             } catch (authErr) {
-              console.error('Failed to remove authority-user link:', authErr);
+              logger.error('Failed to remove authority-user link:', authErr);
             }
           }
         } else if (!hasAuthorityRole) {
@@ -256,14 +257,14 @@ const UserManagement = () => {
           if (existingLink) {
             try {
               await adminService.deleteAuthorityUser(existingLink.id);
-              console.log('Authority-user link removed (user no longer has authority role)');
+              logger.log('Authority-user link removed (user no longer has authority role)');
             } catch (authErr) {
-              console.error('Failed to remove authority-user link:', authErr);
+              logger.error('Failed to remove authority-user link:', authErr);
             }
           }
         }
       } else {
-        console.log('Creating new user:', formData);
+        logger.log('Creating new user:', formData);
         const userData = { ...formData };
         const authorityIdToLink = userData.authorityId;
         delete userData.authorityId; // Don't send authorityId when creating user
@@ -283,9 +284,9 @@ const UserManagement = () => {
               userId: createdUser.id,
               authorityId: parseInt(authorityIdToLink),
             });
-            console.log('Authority-user link created successfully');
+            logger.log('Authority-user link created successfully');
           } catch (authErr) {
-            console.error('Failed to link user to authority:', authErr);
+            logger.error('Failed to link user to authority:', authErr);
             // Don't throw - user was created successfully
           }
         }
@@ -294,9 +295,9 @@ const UserManagement = () => {
       await loadUsers();
       await loadAuthorityUsers(); // Reload authority-user mappings
     } catch (err) {
-      console.error('Failed to save user:', err);
-      console.error('Error response:', err.response);
-      console.error('Error data:', err.response?.data);
+      logger.error('Failed to save user:', err);
+      logger.error('Error response:', err.response);
+      logger.error('Error data:', err.response?.data);
       
       let errorMessage = 'Failed to save user';
       if (err.response?.data) {

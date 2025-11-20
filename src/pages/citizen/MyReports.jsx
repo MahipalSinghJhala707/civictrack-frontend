@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { issueService } from '../../services/issue.service';
 import IssueCard from '../../components/issue/IssueCard';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const MyReports = () => {
   const { user } = useAuth();
@@ -41,33 +42,33 @@ const MyReports = () => {
   const loadReports = async () => {
     try {
       setLoading(true);
-      const response = await issueService.listReports();
-      console.log('API Response:', response);
-      console.log('Response data:', response.data);
-      
-      // Try different possible response structures
-      const reportsData = response.data?.data?.reports || 
-                         response.data?.reports || 
-                         response.data?.data || 
-                         [];
-      
-      console.log('All reports from API:', reportsData);
-      console.log('Current user ID:', user?.id);
-      
-      // Filter reports to only show the current user's reports
-      const myReports = reportsData.filter(report => {
-        const reporterId = report.reporter_id || report.reporter?.id || report.reporterId;
-        const userId = user?.id;
-        console.log(`Report ${report.id}: reporterId=${reporterId}, userId=${userId}, match=${reporterId === userId}`);
-        return reporterId === userId;
-      });
-      
-      console.log('Filtered my reports:', myReports);
+             const response = await issueService.listReports();
+             logger.log('API Response:', response);
+             logger.log('Response data:', response.data);
+             
+             // Try different possible response structures
+             const reportsData = response.data?.data?.reports || 
+                                response.data?.reports || 
+                                response.data?.data || 
+                                [];
+             
+             logger.log('All reports from API:', reportsData);
+             logger.log('Current user ID:', user?.id);
+             
+             // Filter reports to only show the current user's reports
+             const myReports = reportsData.filter(report => {
+               const reporterId = report.reporter_id || report.reporter?.id || report.reporterId;
+               const userId = user?.id;
+               logger.log(`Report ${report.id}: reporterId=${reporterId}, userId=${userId}, match=${reporterId === userId}`);
+               return reporterId === userId;
+             });
+             
+             logger.log('Filtered my reports:', myReports);
       setAllReports(myReports);
       setReports(myReports);
-    } catch (err) {
-      console.error('Failed to load reports:', err);
-      console.error('Error details:', err.response?.data);
+           } catch (err) {
+             logger.error('Failed to load reports:', err);
+             logger.error('Error details:', err.response?.data);
     } finally {
       setLoading(false);
     }

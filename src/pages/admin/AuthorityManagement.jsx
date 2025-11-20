@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { adminService } from '../../services/admin.service';
 import { issueService } from '../../services/issue.service';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const AuthorityManagement = () => {
   const [authorities, setAuthorities] = useState([]);
@@ -33,7 +34,7 @@ const AuthorityManagement = () => {
       const response = await adminService.listAuthorities();
       setAuthorities(response.data.data.authorities || []);
     } catch (err) {
-      console.error('Failed to load authorities:', handleApiError(err));
+      logger.error('Failed to load authorities:', handleApiError(err));
     } finally {
       setLoading(false);
     }
@@ -44,7 +45,7 @@ const AuthorityManagement = () => {
       const response = await adminService.listDepartments();
       setDepartments(response.data.data.departments || []);
     } catch (err) {
-      console.error('Failed to load departments:', err);
+      logger.error('Failed to load departments:', err);
     }
   };
 
@@ -56,7 +57,7 @@ const AuthorityManagement = () => {
                     response.data?.data || 
                     []);
     } catch (err) {
-      console.error('Failed to load categories:', err);
+      logger.error('Failed to load categories:', err);
     }
   };
 
@@ -140,9 +141,9 @@ const AuthorityManagement = () => {
     
     // Load current issue categories assigned to this authority
     try {
-      console.log('Loading issues for authority:', auth.id);
+      logger.log('Loading issues for authority:', auth.id);
       const response = await adminService.getAuthorityIssues(auth.id);
-      console.log('Authority issues response:', response);
+      logger.log('Authority issues response:', response);
       
       const currentIssues = response.data?.data?.issues || 
                            response.data?.data?.categories ||
@@ -151,16 +152,16 @@ const AuthorityManagement = () => {
                            response.data?.data || 
                            [];
       
-      console.log('Current issues:', currentIssues);
+      logger.log('Current issues:', currentIssues);
       
       const issueIds = currentIssues.map(issue => 
         typeof issue === 'object' ? (issue.id || issue.issue_id || issue.category_id) : issue
       );
       setSelectedIssueIds(issueIds);
     } catch (err) {
-      console.error('Failed to load authority issues:', err);
-      console.error('Error response:', err.response);
-      console.error('Error status:', err.response?.status);
+      logger.error('Failed to load authority issues:', err);
+      logger.error('Error response:', err.response);
+      logger.error('Error status:', err.response?.status);
       // If endpoint doesn't exist or fails, start with empty selection
       setSelectedIssueIds([]);
       // Don't show error to user - they can still select issues
@@ -183,10 +184,10 @@ const AuthorityManagement = () => {
     try {
       setSavingIssues(true);
       const issueIds = selectedIssueIds.map(id => parseInt(id));
-      console.log('Saving issues for authority:', editingAuth.id, 'with issueIds:', issueIds);
+      logger.log('Saving issues for authority:', editingAuth.id, 'with issueIds:', issueIds);
       
       const response = await adminService.updateAuthorityIssues(editingAuth.id, issueIds);
-      console.log('Update response:', response);
+      logger.log('Update response:', response);
       
       setShowIssuesModal(false);
       setEditingAuth(null);
@@ -195,10 +196,10 @@ const AuthorityManagement = () => {
       loadAuthorities();
       alert('Issue categories updated successfully!');
     } catch (err) {
-      console.error('Failed to update authority issues:', err);
-      console.error('Error response:', err.response);
-      console.error('Error status:', err.response?.status);
-      console.error('Error data:', err.response?.data);
+      logger.error('Failed to update authority issues:', err);
+      logger.error('Error response:', err.response);
+      logger.error('Error status:', err.response?.status);
+      logger.error('Error data:', err.response?.data);
       
       const errorMsg = handleApiError(err);
       

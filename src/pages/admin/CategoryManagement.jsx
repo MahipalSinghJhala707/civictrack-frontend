@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { issueService } from '../../services/issue.service';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -23,7 +24,7 @@ const CategoryManagement = () => {
                             [];
       setCategories(categoriesData);
     } catch (err) {
-      console.error('Failed to load categories:', err);
+      logger.error('Failed to load categories:', err);
       alert('Failed to load categories: ' + handleApiError(err));
     } finally {
       setLoading(false);
@@ -96,25 +97,25 @@ const CategoryManagement = () => {
         return;
       }
       
-      console.log('Submitting category:', dataToSend);
+      logger.log('Submitting category:', dataToSend);
       
       if (editingCategory) {
-        console.log('Updating category:', editingCategory.id);
+        logger.log('Updating category:', editingCategory.id);
         const response = await issueService.updateCategory(editingCategory.id, dataToSend);
-        console.log('Update response:', response);
+        logger.log('Update response:', response);
       } else {
-        console.log('Creating new category');
+        logger.log('Creating new category');
         const response = await issueService.createCategory(dataToSend);
-        console.log('Create response:', response);
+        logger.log('Create response:', response);
       }
       
       setShowModal(false);
       setFormData({ name: '', slug: '', description: '' });
       loadCategories();
     } catch (err) {
-      console.error('Failed to save category:', err);
-      console.error('Error response:', err.response);
-      console.error('Error data:', err.response?.data);
+      logger.error('Failed to save category:', err);
+      logger.error('Error response:', err.response);
+      logger.error('Error data:', err.response?.data);
       const errorMessage = handleApiError(err);
       alert('Failed to save category: ' + errorMessage);
     }

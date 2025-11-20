@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { issueService } from '../../services/issue.service';
 import ImageUpload from '../../components/forms/ImageUpload';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const ReportIssue = () => {
   const [title, setTitle] = useState('');
@@ -26,9 +27,9 @@ const ReportIssue = () => {
     try {
       const response = await issueService.listCategories();
       setCategories(response.data.data.categories || []);
-    } catch (err) {
-      console.error('Failed to load categories:', err);
-    }
+           } catch (err) {
+             logger.error('Failed to load categories:', err);
+           }
   };
 
   const handleImageUpload = (files) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../../services/admin.service';
 import { handleApiError } from '../../utils/errorHandler';
+import { logger } from '../../utils/logger';
 
 const DepartmentManagement = () => {
   const [departments, setDepartments] = useState([]);
@@ -19,7 +20,7 @@ const DepartmentManagement = () => {
       const response = await adminService.listDepartments();
       setDepartments(response.data.data.departments || []);
     } catch (err) {
-      console.error('Failed to load departments:', handleApiError(err));
+      logger.error('Failed to load departments:', handleApiError(err));
     } finally {
       setLoading(false);
     }

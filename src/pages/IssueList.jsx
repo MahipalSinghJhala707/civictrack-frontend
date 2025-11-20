@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { issueService } from '../services/issue.service';
 import IssueCard from '../components/issue/IssueCard';
 import { handleApiError } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
 
 const IssueList = () => {
   const { user, isCitizen } = useAuth();
@@ -34,7 +35,7 @@ const IssueList = () => {
                             [];
       setCategories(categoriesData);
     } catch (err) {
-      console.error('Failed to load categories:', err);
+      logger.error('Failed to load categories:', err);
     }
   };
 
@@ -42,8 +43,8 @@ const IssueList = () => {
     try {
       setLoading(true);
       const response = await issueService.listReports();
-      console.log('API Response:', response);
-      console.log('Response data:', response.data);
+      logger.log('API Response:', response);
+      logger.log('Response data:', response.data);
       
       // Try different possible response structures
       const reportsData = response.data?.data?.reports || 
@@ -51,17 +52,17 @@ const IssueList = () => {
                          response.data?.data || 
                          [];
       
-      console.log('Extracted reports:', reportsData);
-      console.log('Number of reports:', reportsData.length);
+      logger.log('Extracted reports:', reportsData);
+      logger.log('Number of reports:', reportsData.length);
       
       setAllReports(reportsData);
       setReports(reportsData);
     } catch (err) {
-      console.error('Failed to load reports:', err);
-      console.error('Error details:', err.response?.data);
-      console.error('Error status:', err.response?.status);
+      logger.error('Failed to load reports:', err);
+      logger.error('Error details:', err.response?.data);
+      logger.error('Error status:', err.response?.status);
       const errorMessage = handleApiError(err);
-      console.error('Error message:', errorMessage);
+      logger.error('Error message:', errorMessage);
       if (err.response?.status !== 200) {
         alert('Failed to load issues: ' + errorMessage);
       }
@@ -91,7 +92,7 @@ const IssueList = () => {
         // Convert to number if it's a string, then compare
         const reportIdNum = reportIssueId ? parseInt(reportIssueId) : null;
         
-        console.log(`Filtering report ${report.id}: categoryId=${categoryId}, reportIssueId=${reportIssueId}, reportIdNum=${reportIdNum}, match=${reportIdNum === categoryId}`);
+        logger.log(`Filtering report ${report.id}: categoryId=${categoryId}, reportIssueId=${reportIssueId}, reportIdNum=${reportIdNum}, match=${reportIdNum === categoryId}`);
         
         return reportIdNum === categoryId;
       });

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { issueService } from '../../services/issue.service';
+import { logger } from '../../utils/logger';
 
 const AuthorityDashboard = () => {
   const { user } = useAuth();
@@ -20,17 +21,17 @@ const AuthorityDashboard = () => {
   const loadAssignedIssues = async () => {
     try {
       setLoading(true);
-      console.log('Loading assigned issues for authority dashboard...');
+      logger.log('Loading assigned issues for authority dashboard...');
       const response = await issueService.listReports();
-      console.log('Assigned issues response:', response);
+      logger.log('Assigned issues response:', response);
       
       const reports = response.data?.data?.reports || 
                      response.data?.reports || 
                      response.data?.data || 
                      [];
       
-      console.log('Reports loaded:', reports);
-      console.log('Number of reports:', reports.length);
+      logger.log('Reports loaded:', reports);
+      logger.log('Number of reports:', reports.length);
       
       // Calculate statistics for assigned issues
       const assignedStats = {
@@ -40,12 +41,12 @@ const AuthorityDashboard = () => {
         resolved: reports.filter(r => r.status === 'resolved').length,
       };
       
-      console.log('Calculated stats:', assignedStats);
+      logger.log('Calculated stats:', assignedStats);
       setStats(assignedStats);
     } catch (err) {
-      console.error('Failed to load assigned issues:', err);
-      console.error('Error response:', err.response);
-      console.error('Error data:', err.response?.data);
+      logger.error('Failed to load assigned issues:', err);
+      logger.error('Error response:', err.response);
+      logger.error('Error data:', err.response?.data);
       // Set loading to false even on error
       setLoading(false);
     } finally {
