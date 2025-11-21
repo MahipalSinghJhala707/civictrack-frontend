@@ -33,6 +33,10 @@ dev-dist
 
 .env
 !.env.sample
+!.env.example
 package-lock.json
 
+# Docker
+*.log
+docker-compose.override.yml
 
