@@ -32,6 +32,20 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Add cache-busting for API calls to ensure fresh data
+    // Use timestamp for non-GET requests or when cache control is not set
+    if (config.method && config.method.toLowerCase() !== 'get') {
+      config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      config.headers['Pragma'] = 'no-cache';
+      config.headers['Expires'] = '0';
+    }
+    
+    // Add timestamp to GET requests for cache busting (optional, can be removed if backend handles caching)
+    if (config.method && config.method.toLowerCase() === 'get' && config.url && !config.url.includes('?')) {
+      // Only add if URL doesn't already have query params
+      config.url = `${config.url}?_t=${Date.now()}`;
+    }
+    
     return config;
   },
   (error) => {
