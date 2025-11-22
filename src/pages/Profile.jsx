@@ -93,10 +93,10 @@ const Profile = () => {
     }
 
     try {
+      // Only send oldPassword and newPassword to backend (confirm password validated on frontend)
       await authService.changePassword(
         trimmedOldPassword,
-        trimmedNewPassword,
-        trimmedConfirmPassword
+        trimmedNewPassword
       );
       
       setSuccess('Password changed successfully. You will be logged out for security. Please log in again with your new password.');

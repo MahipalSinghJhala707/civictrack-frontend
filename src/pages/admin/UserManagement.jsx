@@ -204,10 +204,10 @@ const UserManagement = () => {
     }
 
     try {
+      // Only send newPassword to backend (confirm password validated on frontend)
       await adminService.changeUserPassword(
         passwordChangeUser.id,
-        trimmedNewPassword,
-        trimmedConfirmPassword
+        trimmedNewPassword
       );
       
       alert(`Password changed successfully for ${passwordChangeUser.name}. They will need to use this new password to log in.`);

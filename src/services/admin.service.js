@@ -14,10 +14,9 @@ export const adminService = {
     return api.patch(`/api/admin/users/${userId}/roles`, { roleIds: roleIdsArray });
   },
   deleteUser: (userId) => api.delete(`/api/admin/users/${userId}`),
-  changeUserPassword: (userId, newPassword, confirmPassword) =>
+  changeUserPassword: (userId, newPassword) =>
     api.patch(`/api/admin/users/${userId}/password`, {
       newPassword,
-      confirmPassword,
     }),
 
   // Departments
