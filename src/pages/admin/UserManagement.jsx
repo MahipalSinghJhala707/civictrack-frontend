@@ -623,6 +623,104 @@ const UserManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Password Change Modal */}
+      {showPasswordModal && passwordChangeUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">
+              Change Password for {passwordChangeUser.name}
+            </h2>
+            
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded mb-4">
+              <p className="text-sm">
+                This will immediately change the user's password. They will need to use this new password to log in.
+              </p>
+            </div>
+
+            {passwordErrors.general && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                {passwordErrors.general}
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={passwordFormData.newPassword}
+                  onChange={(e) => {
+                    setPasswordFormData({ ...passwordFormData, newPassword: e.target.value });
+                    setPasswordErrors({ ...passwordErrors, newPassword: '' });
+                  }}
+                  required
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    passwordErrors.newPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter new password"
+                />
+                {passwordErrors.newPassword && (
+                  <p className="mt-1 text-sm text-red-600">{passwordErrors.newPassword}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Must be at least 8 characters with uppercase, lowercase, and number.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm New Password <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={passwordFormData.confirmPassword}
+                  onChange={(e) => {
+                    setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value });
+                    setPasswordErrors({ ...passwordErrors, confirmPassword: '' });
+                  }}
+                  required
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    passwordErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Confirm new password"
+                />
+                {passwordErrors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{passwordErrors.confirmPassword}</p>
+                )}
+                {passwordFormData.confirmPassword && 
+                 passwordFormData.newPassword === passwordFormData.confirmPassword && (
+                  <p className="mt-1 text-sm text-green-600">✓ Passwords match</p>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordFormData({ newPassword: '', confirmPassword: '' });
+                    setPasswordErrors({});
+                    setPasswordChangeUser(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                >
+                  {changingPassword ? 'Changing Password...' : 'Change Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
