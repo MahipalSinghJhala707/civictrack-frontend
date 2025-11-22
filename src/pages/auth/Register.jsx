@@ -47,12 +47,15 @@ const Register = () => {
     }
 
     // Validate password confirmation
+    const trimmedPassword = password.trim();
+    const trimmedConfirmPassword = confirmPassword.trim();
+    
     if (!confirmPassword) {
       setError('Please confirm your password.');
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (trimmedPassword !== trimmedConfirmPassword) {
       setError('Passwords do not match. Please make sure both password fields are the same.');
       return;
     }
@@ -60,7 +63,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await register({ name, email, password });
+      await register({ name, email, password: trimmedPassword });
       navigate('/', { replace: true });
     } catch (err) {
       setError(handleApiError(err));

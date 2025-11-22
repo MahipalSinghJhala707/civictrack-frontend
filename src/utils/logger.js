@@ -1,8 +1,3 @@
-/**
- * Logger utility for production-safe logging
- * In production, only logs errors and warnings
- * In development, logs all messages
- */
 
 const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
 

@@ -163,11 +163,12 @@ const UserManagement = () => {
   };
 
   const validatePassword = (password) => {
-    if (!password) return 'Password is required.';
-    if (password.length < 8) return 'Password must be at least 8 characters long.';
-    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter.';
-    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
-    if (!/[0-9]/.test(password)) return 'Password must contain at least one number.';
+    const trimmedPassword = password?.trim() || '';
+    if (!trimmedPassword) return 'Password is required.';
+    if (trimmedPassword.length < 8) return 'Password must be at least 8 characters long.';
+    if (!/[a-z]/.test(trimmedPassword)) return 'Password must contain at least one lowercase letter.';
+    if (!/[A-Z]/.test(trimmedPassword)) return 'Password must contain at least one uppercase letter.';
+    if (!/[0-9]/.test(trimmedPassword)) return 'Password must contain at least one number.';
     return null;
   };
 
@@ -184,8 +185,12 @@ const UserManagement = () => {
       return;
     }
 
+    // Trim passwords for validation and submission
+    const trimmedNewPassword = passwordFormData.newPassword.trim();
+    const trimmedConfirmPassword = passwordFormData.confirmPassword.trim();
+
     // Validate password match
-    if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
+    if (trimmedNewPassword !== trimmedConfirmPassword) {
       setPasswordErrors({ confirmPassword: 'Passwords do not match. Please make sure both fields are the same.' });
       setChangingPassword(false);
       return;
@@ -201,8 +206,8 @@ const UserManagement = () => {
     try {
       await adminService.changeUserPassword(
         passwordChangeUser.id,
-        passwordFormData.newPassword,
-        passwordFormData.confirmPassword
+        trimmedNewPassword,
+        trimmedConfirmPassword
       );
       
       alert(`Password changed successfully for ${passwordChangeUser.name}. They will need to use this new password to log in.`);
@@ -691,7 +696,7 @@ const UserManagement = () => {
                   <p className="mt-1 text-sm text-red-600">{passwordErrors.confirmPassword}</p>
                 )}
                 {passwordFormData.confirmPassword && 
-                 passwordFormData.newPassword === passwordFormData.confirmPassword && (
+                 passwordFormData.newPassword.trim() === passwordFormData.confirmPassword.trim() && (
                   <p className="mt-1 text-sm text-green-600">✓ Passwords match</p>
                 )}
               </div>

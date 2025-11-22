@@ -32,11 +32,12 @@ const Profile = () => {
   };
 
   const validatePassword = (password) => {
-    if (!password) return 'Password is required.';
-    if (password.length < 8) return 'Password must be at least 8 characters long.';
-    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter.';
-    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
-    if (!/[0-9]/.test(password)) return 'Password must contain at least one number.';
+    const trimmedPassword = password?.trim() || '';
+    if (!trimmedPassword) return 'Password is required.';
+    if (trimmedPassword.length < 8) return 'Password must be at least 8 characters long.';
+    if (!/[a-z]/.test(trimmedPassword)) return 'Password must contain at least one lowercase letter.';
+    if (!/[A-Z]/.test(trimmedPassword)) return 'Password must contain at least one uppercase letter.';
+    if (!/[0-9]/.test(trimmedPassword)) return 'Password must contain at least one number.';
     return null;
   };
 
@@ -72,15 +73,20 @@ const Profile = () => {
       return;
     }
 
+    // Trim passwords for validation and submission
+    const trimmedOldPassword = formData.oldPassword.trim();
+    const trimmedNewPassword = formData.newPassword.trim();
+    const trimmedConfirmPassword = formData.confirmPassword.trim();
+
     // Validate password match
-    if (formData.newPassword !== formData.confirmPassword) {
+    if (trimmedNewPassword !== trimmedConfirmPassword) {
       setErrors({ confirmPassword: 'New passwords do not match. Please make sure both fields are the same.' });
       setLoading(false);
       return;
     }
 
     // Validate not same as old password
-    if (formData.oldPassword === formData.newPassword) {
+    if (trimmedOldPassword === trimmedNewPassword) {
       setErrors({ newPassword: 'New password must be different from your current password.' });
       setLoading(false);
       return;
@@ -88,9 +94,9 @@ const Profile = () => {
 
     try {
       await authService.changePassword(
-        formData.oldPassword,
-        formData.newPassword,
-        formData.confirmPassword
+        trimmedOldPassword,
+        trimmedNewPassword,
+        trimmedConfirmPassword
       );
       
       setSuccess('Password changed successfully. You will be logged out for security. Please log in again with your new password.');
@@ -268,7 +274,7 @@ const Profile = () => {
             {errors.confirmPassword && (
               <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
             )}
-            {formData.confirmPassword && formData.newPassword === formData.confirmPassword && (
+            {formData.confirmPassword && formData.newPassword.trim() === formData.confirmPassword.trim() && (
               <p className="mt-1 text-sm text-green-600">✓ Passwords match</p>
             )}
           </div>
