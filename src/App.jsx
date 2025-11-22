@@ -32,6 +32,7 @@ import FlaggedReports from './pages/admin/FlaggedReports';
 // Common Pages
 import IssueList from './pages/IssueList';
 import IssueDetail from './pages/IssueDetail';
+import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 
 // Home page component that shows different content based on user role
@@ -188,6 +189,26 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <IssueDetail />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Profile/Settings Route */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Profile/Settings Route */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         }
       />

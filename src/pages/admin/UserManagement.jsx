@@ -10,6 +10,14 @@ const UserManagement = () => {
   const [authorityUsers, setAuthorityUsers] = useState([]); // Store authority-user mappings
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordChangeUser, setPasswordChangeUser] = useState(null);
+  const [passwordFormData, setPasswordFormData] = useState({
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [changingPassword, setChangingPassword] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -145,6 +153,71 @@ const UserManagement = () => {
       authorityId: currentAuthorityId,
     });
     setShowModal(true);
+  };
+
+  const handleChangePassword = (user) => {
+    setPasswordChangeUser(user);
+    setPasswordFormData({ newPassword: '', confirmPassword: '' });
+    setPasswordErrors({});
+    setShowPasswordModal(true);
+  };
+
+  const validatePassword = (password) => {
+    if (!password) return 'Password is required.';
+    if (password.length < 8) return 'Password must be at least 8 characters long.';
+    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter.';
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
+    if (!/[0-9]/.test(password)) return 'Password must contain at least one number.';
+    return null;
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordErrors({});
+    setChangingPassword(true);
+
+    // Validate new password
+    const passwordError = validatePassword(passwordFormData.newPassword);
+    if (passwordError) {
+      setPasswordErrors({ newPassword: passwordError });
+      setChangingPassword(false);
+      return;
+    }
+
+    // Validate password match
+    if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
+      setPasswordErrors({ confirmPassword: 'Passwords do not match. Please make sure both fields are the same.' });
+      setChangingPassword(false);
+      return;
+    }
+
+    // Confirm before changing
+    const confirmMessage = `Are you sure you want to change the password for ${passwordChangeUser?.name} (${passwordChangeUser?.email})? They will need to use this new password to log in.`;
+    if (!window.confirm(confirmMessage)) {
+      setChangingPassword(false);
+      return;
+    }
+
+    try {
+      await adminService.changeUserPassword(
+        passwordChangeUser.id,
+        passwordFormData.newPassword,
+        passwordFormData.confirmPassword
+      );
+      
+      alert(`Password changed successfully for ${passwordChangeUser.name}. They will need to use this new password to log in.`);
+      setShowPasswordModal(false);
+      setPasswordFormData({ newPassword: '', confirmPassword: '' });
+      setPasswordChangeUser(null);
+      // Optionally reload users to refresh data
+      // await loadUsers();
+    } catch (err) {
+      logger.error('Failed to change user password:', err);
+      const errorMessage = handleApiError(err);
+      setPasswordErrors({ general: errorMessage });
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -413,6 +486,13 @@ const UserManagement = () => {
                     className="text-blue-600 hover:text-blue-800"
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={() => handleChangePassword(user)}
+                    className="text-green-600 hover:text-green-800"
+                    title="Change user password"
+                  >
+                    Change Password
                   </button>
                   <button
                     onClick={() => handleDelete(user.id)}
