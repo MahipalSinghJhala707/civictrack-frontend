@@ -241,7 +241,7 @@ const IssueList = () => {
       </div>
 
       {/* Results Count */}
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <p className="text-gray-600">
           {reports.length === allReports.length ? (
             <>Showing all <span className="font-semibold">{reports.length}</span> issues</>
@@ -252,7 +252,7 @@ const IssueList = () => {
         {isCitizen && (
           <button
             onClick={() => navigate('/report')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
+            className="w-full sm:w-auto bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
           >
             Report New Issue
           </button>

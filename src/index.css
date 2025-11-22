@@ -28,3 +28,27 @@ code {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Prevent horizontal scroll on mobile */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+/* Ensure proper viewport on mobile */
+#root {
+  width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Ensure containers don't overflow */
+* {
+  max-width: 100%;
+}
+
+img, video {
+  max-width: 100%;
+  height: auto;
+}
