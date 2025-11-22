@@ -133,6 +133,25 @@ const transformErrorMessage = (message) => {
     return 'The requested information could not be found.';
   }
   
+  // S3/Image upload errors
+  if (lowerMessage.includes('signature') && lowerMessage.includes('match')) {
+    return 'Image upload failed due to a server configuration issue. Please try again in a moment or contact support if the problem persists.';
+  }
+  if (lowerMessage.includes('s3') || lowerMessage.includes('upload') || lowerMessage.includes('image')) {
+    if (lowerMessage.includes('failed') || lowerMessage.includes('error')) {
+      return 'Failed to upload images. Please check your internet connection and try again. If the problem persists, try uploading fewer or smaller images.';
+    }
+  }
+  
+  // Rate limiting errors
+  if (lowerMessage.includes('rate limit') || lowerMessage.includes('too many requests')) {
+    return 'Too many requests. Please wait a moment and try again.';
+  }
+  if (lowerMessage.includes('trust proxy') || lowerMessage.includes('rate limiting')) {
+    // This is a backend configuration issue, but we'll provide a user-friendly message
+    return 'The server is temporarily unavailable. Please try again in a moment.';
+  }
+  
   // Return original message if no transformation found, but capitalize first letter
   return message.charAt(0).toUpperCase() + message.slice(1);
 };
@@ -225,14 +244,37 @@ export const handleApiError = (error) => {
         }
         return 'Please check your input and correct any errors.';
         
+      case 429:
+        // Too Many Requests - Rate limiting
+        return 'Too many requests. Please wait a moment and try again.';
+        
       case 500:
       case 502:
       case 503:
+        // Check for specific error types in the message
+        if (data?.message) {
+          const lowerMessage = data.message.toLowerCase();
+          // S3 upload errors
+          if (lowerMessage.includes('signature') || lowerMessage.includes('s3') || lowerMessage.includes('upload')) {
+            return 'Image upload failed. Please try again. If the problem persists, try uploading fewer or smaller images, or contact support.';
+          }
+          // Rate limiting configuration errors
+          if (lowerMessage.includes('rate limit') || lowerMessage.includes('trust proxy')) {
+            return 'The server is temporarily unavailable. Please try again in a few moments.';
+          }
+        }
         return 'Our servers are experiencing issues. Please try again in a few moments.';
         
       default:
         if (data?.message) {
           return transformErrorMessage(data.message);
+        }
+        // Check for S3 or upload errors in error object
+        if (data?.error || data?.name) {
+          const errorStr = (data.error || data.name || '').toLowerCase();
+          if (errorStr.includes('signature') || errorStr.includes('s3')) {
+            return 'Image upload failed due to a server configuration issue. Please try again later or contact support.';
+          }
         }
         return 'Something went wrong. Please try again or contact support if the problem persists.';
     }
@@ -241,6 +283,11 @@ export const handleApiError = (error) => {
   // Network errors
   if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
     return 'Unable to connect to the server. Please check your internet connection and try again.';
+  }
+  
+  // Check for S3 signature errors in error object
+  if (error.name === 'SignatureDoesNotMatch' || error.code === 'SignatureDoesNotMatch') {
+    return 'Image upload failed due to a server configuration issue. Please try again later or contact support.';
   }
   
   if (error.message) {

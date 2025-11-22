@@ -125,7 +125,13 @@ const ReportIssue = () => {
         });
       }
     } catch (err) {
-      setError(handleApiError(err));
+      const errorMessage = handleApiError(err);
+      // Provide more context for image upload errors
+      if (images.length > 0 && (errorMessage.includes('upload') || errorMessage.includes('image') || errorMessage.includes('signature'))) {
+        setError(`${errorMessage} You may want to try uploading fewer images or smaller file sizes.`);
+      } else {
+        setError(errorMessage);
+      }
       setLoading(false);
     }
   };
