@@ -1,0 +1,17 @@
+node_modules
+dev-dist
+dist
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+package-lock.json
+package.json
+npm-debug.log
+pnpm-lock.yaml
+yarn.lock
+coverage
+.vscode
+.idea
+tmp
+
