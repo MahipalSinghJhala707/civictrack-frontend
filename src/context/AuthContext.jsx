@@ -13,6 +13,13 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await authService.getCurrentUser();
       logger.log('Auth check response:', response);
@@ -24,6 +31,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       logger.error('Auth check failed:', error);
       logger.error('Error response:', error.response?.data);
+      localStorage.removeItem('token');
       setUser(null);
     } finally {
       setLoading(false);
@@ -35,11 +43,27 @@ export const AuthProvider = ({ children }) => {
       logger.log('Login attempt:', { email, role });
       const response = await authService.login(email, password, role);
       logger.log('Login response:', response);
-      await checkAuth();
+      
+      // Extract token and user from response (handle different response structures)
+      const token = response.data?.token || response.token || response.data?.data?.token;
+      const userData = response.data?.user || response.user || response.data?.data?.user || response.data;
+      
+      if (!token) {
+        throw new Error('No token received from login response');
+      }
+      
+      // Store token in localStorage
+      localStorage.setItem('token', token);
+      
+      // Set user state directly
+      setUser(userData);
+      
       return response;
     } catch (error) {
       logger.error('Login error:', error);
       logger.error('Login error response:', error.response?.data);
+      localStorage.removeItem('token');
+      setUser(null);
       throw error;
     }
   };
@@ -49,7 +73,21 @@ export const AuthProvider = ({ children }) => {
       logger.log('Registering user:', data);
       const response = await authService.register(data);
       logger.log('Register response:', response);
-      await checkAuth();
+      
+      // Extract token and user from response (handle different response structures)
+      const token = response.data?.token || response.token || response.data?.data?.token;
+      const userData = response.data?.user || response.user || response.data?.data?.user || response.data;
+      
+      if (token) {
+        // Store token in localStorage
+        localStorage.setItem('token', token);
+        // Set user state directly
+        setUser(userData);
+      } else {
+        // If no token, check auth (might be cookie-based or needs separate login)
+        await checkAuth();
+      }
+      
       logger.log('Auth check after registration completed');
       return response;
     } catch (error) {
@@ -60,8 +98,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await authService.logout();
-    setUser(null);
+    try {
+      await authService.logout();
+    } catch (error) {
+      logger.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      setUser(null);
+    }
   };
 
   const getUserRole = () => {

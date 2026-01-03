@@ -44,10 +44,7 @@ const Login = () => {
       const response = await login(email, password, role);
       logger.log('Login successful, response:', response);
       setLoading(false);
-      // Wait a bit for auth state to update
-      setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 100);
+      navigate('/', { replace: true });
     } catch (err) {
       logger.error('Login failed:', err);
       const errorMessage = handleApiError(err);

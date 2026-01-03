@@ -32,6 +32,12 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Add Authorization header with token if available
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
     // Add cache-busting headers for non-GET requests to ensure fresh data
     if (config.method && config.method.toLowerCase() !== 'get') {
       config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
@@ -51,6 +57,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Clear invalid token
+      localStorage.removeItem('token');
       // Only redirect if not already on login/register page
       const currentPath = window.location.pathname;
       if (currentPath !== '/login' && currentPath !== '/register') {
