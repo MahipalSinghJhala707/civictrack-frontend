@@ -13,13 +13,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
     try {
       const response = await authService.getCurrentUser();
       logger.log('Auth check response:', response);
@@ -42,21 +35,34 @@ export const AuthProvider = ({ children }) => {
     try {
       logger.log('Login attempt:', { email, role });
       const response = await authService.login(email, password, role);
-      logger.log('Login response:', response);
+      logger.log('Login response (full):', JSON.stringify(response, null, 2));
+      logger.log('Login response keys:', Object.keys(response));
       
       // Extract token and user from response (handle different response structures)
-      const token = response.data?.token || response.token || response.data?.data?.token;
-      const userData = response.data?.user || response.user || response.data?.data?.user || response.data;
+      // authService.login returns response.data, so response is already unwrapped
+      const token = response.token || response.data?.token || response.accessToken || response.access_token;
+      const userData = response.user || response.data?.user || response.data;
       
-      if (!token) {
-        throw new Error('No token received from login response');
+      logger.log('Extracted token:', token ? 'Found' : 'Not found');
+      logger.log('Extracted userData:', userData);
+      
+      // If using cookie-based auth (withCredentials: true), token might not be in response
+      // In that case, we still call checkAuth to verify and get user
+      if (token) {
+        // Store token in localStorage
+        localStorage.setItem('token', token);
+        // Set user state directly if user data is available
+        if (userData) {
+          setUser(userData);
+        } else {
+          // If no user data in login response, fetch it
+          await checkAuth();
+        }
+      } else {
+        // Cookie-based auth: just verify and get user
+        logger.log('No token in response, using cookie-based auth');
+        await checkAuth();
       }
-      
-      // Store token in localStorage
-      localStorage.setItem('token', token);
-      
-      // Set user state directly
-      setUser(userData);
       
       return response;
     } catch (error) {
