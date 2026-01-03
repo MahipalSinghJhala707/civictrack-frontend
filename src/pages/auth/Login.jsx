@@ -14,7 +14,10 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setError('');
     
     // Validate email
@@ -40,6 +43,7 @@ const Login = () => {
     try {
       const response = await login(email, password, role);
       logger.log('Login successful, response:', response);
+      setLoading(false);
       // Wait a bit for auth state to update
       setTimeout(() => {
         navigate('/', { replace: true });
