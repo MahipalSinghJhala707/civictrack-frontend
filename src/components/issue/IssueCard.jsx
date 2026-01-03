@@ -7,6 +7,7 @@ import { issueService } from '../../services/issue.service';
 import { handleApiError } from '../../utils/errorHandler';
 import { logger } from '../../utils/logger';
 import FlagModal from './FlagModal';
+import { getImageUrl, handleImageError } from '../../utils/imageHelper';
 
 const IssueCard = ({ report, onUpdate }) => {
   const navigate = useNavigate();
@@ -106,14 +107,19 @@ const IssueCard = ({ report, onUpdate }) => {
       <div className="mb-3 flex-shrink-0 min-h-[5rem]">
         {report.images && report.images.length > 0 ? (
           <div className="flex gap-2">
-            {report.images.slice(0, 3).map((img) => (
-              <img
-                key={img.id}
-                src={img.url}
-                alt="Issue"
-                className="w-20 h-20 object-cover rounded"
-              />
-            ))}
+            {report.images.slice(0, 3).map((img) => {
+              const imageUrl = getImageUrl(img.url);
+              return (
+                <img
+                  key={img.id}
+                  src={imageUrl}
+                  alt="Issue"
+                  className="w-20 h-20 object-cover rounded"
+                  onError={handleImageError}
+                  loading="lazy"
+                />
+              );
+            })}
             {report.images.length > 3 && (
               <div className="w-20 h-20 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600">
                 +{report.images.length - 3}

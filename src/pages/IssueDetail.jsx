@@ -6,6 +6,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import { formatDate } from '../utils/helpers';
 import { handleApiError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
+import { getImageUrl, handleImageError } from '../utils/imageHelper';
 
 const IssueDetail = () => {
   const { id } = useParams();
@@ -164,14 +165,19 @@ const IssueDetail = () => {
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-2">Images</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {report.images.map((img) => (
-                <img
-                  key={img.id}
-                  src={img.url}
-                  alt="Issue"
-                  className="w-full h-48 object-cover rounded"
-                />
-              ))}
+              {report.images.map((img) => {
+                const imageUrl = getImageUrl(img.url);
+                return (
+                  <img
+                    key={img.id}
+                    src={imageUrl}
+                    alt="Issue"
+                    className="w-full h-48 object-cover rounded"
+                    onError={handleImageError}
+                    loading="lazy"
+                  />
+                );
+              })}
             </div>
           </div>
         )}

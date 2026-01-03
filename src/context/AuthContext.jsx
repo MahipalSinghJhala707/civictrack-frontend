@@ -60,13 +60,23 @@ export const AuthProvider = ({ children }) => {
       logger.log('Extracted userData:', userData);
       
       // Cookie-based auth: token is in HttpOnly cookie, automatically sent by browser
-      // After successful login, verify auth and get user info
+      // Note: If cookie has SameSite=Lax, cross-origin requests won't send the cookie
+      // Backend should use SameSite=None; Secure for cross-origin cookies
+      
+      // Always try to get user info after login to verify cookie is working
+      // Small delay to ensure cookie is set by browser
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       if (userData) {
-        // If user data is in login response, use it
+        // If user data is in login response, use it but still verify
         setUser(userData);
-        logger.log('User set from login response');
+        logger.log('User set from login response, verifying with checkAuth...');
+        // Verify in background (don't await, but log errors)
+        checkAuth().catch(err => {
+          logger.error('Auth verification after login failed:', err);
+        });
       } else {
-        // Otherwise, fetch user info using the cookie
+        // Fetch user info using the cookie
         logger.log('No user data in login response, calling checkAuth to fetch user...');
         await checkAuth();
       }
@@ -137,32 +147,42 @@ export const AuthProvider = ({ children }) => {
 
   const getUserRole = () => {
     if (!user) {
-      logger.log('No user found');
+      logger.log('No user found for role extraction');
       return null;
     }
     
-    logger.log('User object:', user);
+    logger.log('User object for role extraction:', user);
     logger.log('User roles:', user.roles);
+    logger.log('User role property:', user.role);
     
     // Handle different possible role structures
     if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
       // If roles is an array of objects with 'name' property
       const roleName = user.roles[0]?.name || user.roles[0];
-      logger.log('Extracted role:', roleName);
-      return roleName;
+      logger.log('Extracted role from roles array:', roleName);
+      return typeof roleName === 'string' ? roleName.toLowerCase() : roleName;
     }
     
     // If user has a direct role property
     if (user.role) {
-      logger.log('Direct role property:', user.role);
-      return user.role;
+      const roleValue = typeof user.role === 'string' ? user.role.toLowerCase() : user.role;
+      logger.log('Extracted role from role property:', roleValue);
+      return roleValue;
     }
     
-    logger.log('No role found for user');
+    logger.warn('No role found for user - user object:', user);
     return null;
   };
 
   const role = getUserRole();
+  
+  // Log role-based flags for debugging
+  logger.log('Role calculation:', {
+    role,
+    isAdmin: role === 'admin',
+    isAuthority: role === 'authority',
+    isCitizen: role === 'citizen',
+  });
 
   const value = {
     user,
