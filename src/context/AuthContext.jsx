@@ -13,7 +13,19 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
+    // Check if token exists before making the request
+    const token = localStorage.getItem('token');
+    logger.log('checkAuth called, token in localStorage:', token ? `Yes (length: ${token.length})` : 'No');
+    
+    if (!token) {
+      logger.warn('No token found in localStorage, skipping auth check');
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    
     try {
+      logger.log('Calling getCurrentUser with token available');
       const response = await authService.getCurrentUser();
       logger.log('Auth check response:', response);
       logger.log('User data:', response.data?.user || response.user);
@@ -24,8 +36,14 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       logger.error('Auth check failed:', error);
       logger.error('Error response:', error.response?.data);
-      localStorage.removeItem('token');
-      setUser(null);
+      logger.error('Error status:', error.response?.status);
+      
+      // Only clear token on 401 (unauthorized), not on network errors
+      if (error.response?.status === 401) {
+        logger.warn('401 Unauthorized - clearing token');
+        localStorage.removeItem('token');
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -34,16 +52,32 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, role) => {
     try {
       logger.log('Login attempt:', { email, role });
+      logger.log('API Base URL:', import.meta.env.VITE_API_BASE_URL || 'Using fallback');
+      
       const response = await authService.login(email, password, role);
       logger.log('Login response (full):', JSON.stringify(response, null, 2));
-      logger.log('Login response keys:', Object.keys(response));
+      logger.log('Login response keys:', Object.keys(response || {}));
+      logger.log('Login response type:', typeof response);
       
       // Extract token and user from response (handle different response structures)
       // authService.login returns response.data, so response is already unwrapped
-      const token = response.token || response.data?.token || response.accessToken || response.access_token;
-      const userData = response.user || response.data?.user || response.data;
+      // Try multiple possible locations for the token
+      const token = 
+        response?.token || 
+        response?.data?.token || 
+        response?.accessToken || 
+        response?.access_token ||
+        response?.data?.accessToken || 
+        response?.data?.access_token ||
+        (response?.data && typeof response.data === 'object' && (response.data.token || response.data.accessToken || response.data.access_token));
       
-      logger.log('Extracted token:', token ? 'Found' : 'Not found');
+      const userData = 
+        response?.user || 
+        response?.data?.user || 
+        (response?.data && typeof response.data === 'object' && response.data.user) ||
+        response?.data;
+      
+      logger.log('Extracted token:', token ? `Found (length: ${token.length})` : 'Not found');
       logger.log('Extracted userData:', userData);
       
       // If using cookie-based auth (withCredentials: true), token might not be in response
@@ -51,11 +85,23 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         // Store token in localStorage
         localStorage.setItem('token', token);
+        logger.log('Token stored in localStorage');
+        
+        // Verify token was stored
+        const storedToken = localStorage.getItem('token');
+        if (storedToken !== token) {
+          logger.error('Token storage verification failed!');
+        } else {
+          logger.log('Token storage verified successfully');
+        }
+        
         // Set user state directly if user data is available
         if (userData) {
           setUser(userData);
+          logger.log('User set from login response');
         } else {
           // If no user data in login response, fetch it
+          logger.log('No user data in login response, calling checkAuth...');
           await checkAuth();
         }
       } else {
@@ -67,7 +113,17 @@ export const AuthProvider = ({ children }) => {
       return response;
     } catch (error) {
       logger.error('Login error:', error);
+      logger.error('Login error message:', error.message);
+      logger.error('Login error code:', error.code);
       logger.error('Login error response:', error.response?.data);
+      logger.error('Login error status:', error.response?.status);
+      logger.error('Login error headers:', error.response?.headers);
+      
+      // Check for CORS errors
+      if (error.message?.includes('CORS') || error.code === 'ERR_NETWORK' || !error.response) {
+        logger.error('Possible CORS or network error in production');
+      }
+      
       localStorage.removeItem('token');
       setUser(null);
       throw error;

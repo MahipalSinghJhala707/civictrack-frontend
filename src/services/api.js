@@ -20,8 +20,14 @@ const getBaseURL = () => {
   return `${protocol}//${hostname}${port}`;
 };
 
+const baseURL = getBaseURL();
+// Log the API base URL (helps debug production issues)
+console.log('API Base URL:', baseURL);
+console.log('Environment:', import.meta.env.MODE);
+console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL || 'Not set');
+
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: baseURL,
   withCredentials: true, // Important for cookie-based auth
   headers: {
     'Content-Type': 'application/json',
@@ -36,6 +42,13 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      // Log token usage (first few chars only for security)
+      console.log(`[API] Adding token to ${config.method?.toUpperCase()} ${config.url}`, {
+        tokenPreview: token.substring(0, 20) + '...',
+        tokenLength: token.length
+      });
+    } else {
+      console.warn(`[API] No token found for ${config.method?.toUpperCase()} ${config.url}`);
     }
     
     // Add cache-busting headers for non-GET requests to ensure fresh data
