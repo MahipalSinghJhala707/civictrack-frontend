@@ -13,19 +13,10 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
-    // Check if token exists before making the request
-    const token = localStorage.getItem('token');
-    logger.log('checkAuth called, token in localStorage:', token ? `Yes (length: ${token.length})` : 'No');
-    
-    if (!token) {
-      logger.warn('No token found in localStorage, skipping auth check');
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-    
+    // Cookie-based auth: cookies are sent automatically by browser with withCredentials: true
+    // No need to check localStorage for token
     try {
-      logger.log('Calling getCurrentUser with token available');
+      logger.log('Calling getCurrentUser (cookie-based auth)');
       const response = await authService.getCurrentUser();
       logger.log('Auth check response:', response);
       logger.log('User data:', response.data?.user || response.user);
@@ -38,10 +29,9 @@ export const AuthProvider = ({ children }) => {
       logger.error('Error response:', error.response?.data);
       logger.error('Error status:', error.response?.status);
       
-      // Only clear token on 401 (unauthorized), not on network errors
+      // On 401, user is not authenticated (cookie expired or invalid)
       if (error.response?.status === 401) {
-        logger.warn('401 Unauthorized - clearing token');
-        localStorage.removeItem('token');
+        logger.warn('401 Unauthorized - user not authenticated');
         setUser(null);
       }
     } finally {
@@ -54,59 +44,30 @@ export const AuthProvider = ({ children }) => {
       logger.log('Login attempt:', { email, role });
       logger.log('API Base URL:', import.meta.env.VITE_API_BASE_URL || 'Using fallback');
       
+      // Login will set an HttpOnly cookie automatically
+      // The cookie is sent by the browser, not accessible to JavaScript
       const response = await authService.login(email, password, role);
       logger.log('Login response (full):', JSON.stringify(response, null, 2));
       logger.log('Login response keys:', Object.keys(response || {}));
-      logger.log('Login response type:', typeof response);
       
-      // Extract token and user from response (handle different response structures)
-      // authService.login returns response.data, so response is already unwrapped
-      // Try multiple possible locations for the token
-      const token = 
-        response?.token || 
-        response?.data?.token || 
-        response?.accessToken || 
-        response?.access_token ||
-        response?.data?.accessToken || 
-        response?.data?.access_token ||
-        (response?.data && typeof response.data === 'object' && (response.data.token || response.data.accessToken || response.data.access_token));
-      
+      // Extract user data from response if available
       const userData = 
         response?.user || 
         response?.data?.user || 
         (response?.data && typeof response.data === 'object' && response.data.user) ||
         response?.data;
       
-      logger.log('Extracted token:', token ? `Found (length: ${token.length})` : 'Not found');
       logger.log('Extracted userData:', userData);
       
-      // If using cookie-based auth (withCredentials: true), token might not be in response
-      // In that case, we still call checkAuth to verify and get user
-      if (token) {
-        // Store token in localStorage
-        localStorage.setItem('token', token);
-        logger.log('Token stored in localStorage');
-        
-        // Verify token was stored
-        const storedToken = localStorage.getItem('token');
-        if (storedToken !== token) {
-          logger.error('Token storage verification failed!');
-        } else {
-          logger.log('Token storage verified successfully');
-        }
-        
-        // Set user state directly if user data is available
-        if (userData) {
-          setUser(userData);
-          logger.log('User set from login response');
-        } else {
-          // If no user data in login response, fetch it
-          logger.log('No user data in login response, calling checkAuth...');
-          await checkAuth();
-        }
+      // Cookie-based auth: token is in HttpOnly cookie, automatically sent by browser
+      // After successful login, verify auth and get user info
+      if (userData) {
+        // If user data is in login response, use it
+        setUser(userData);
+        logger.log('User set from login response');
       } else {
-        // Cookie-based auth: just verify and get user
-        logger.log('No token in response, using cookie-based auth');
+        // Otherwise, fetch user info using the cookie
+        logger.log('No user data in login response, calling checkAuth to fetch user...');
         await checkAuth();
       }
       
@@ -117,14 +78,12 @@ export const AuthProvider = ({ children }) => {
       logger.error('Login error code:', error.code);
       logger.error('Login error response:', error.response?.data);
       logger.error('Login error status:', error.response?.status);
-      logger.error('Login error headers:', error.response?.headers);
       
       // Check for CORS errors
       if (error.message?.includes('CORS') || error.code === 'ERR_NETWORK' || !error.response) {
         logger.error('Possible CORS or network error in production');
       }
       
-      localStorage.removeItem('token');
       setUser(null);
       throw error;
     }
@@ -136,17 +95,21 @@ export const AuthProvider = ({ children }) => {
       const response = await authService.register(data);
       logger.log('Register response:', response);
       
-      // Extract token and user from response (handle different response structures)
-      const token = response.data?.token || response.token || response.data?.data?.token;
-      const userData = response.data?.user || response.user || response.data?.data?.user || response.data;
+      // Cookie-based auth: token is in HttpOnly cookie if backend sets it on registration
+      // Extract user data from response if available
+      const userData = 
+        response?.user || 
+        response?.data?.user || 
+        (response?.data && typeof response.data === 'object' && response.data.user) ||
+        response?.data;
       
-      if (token) {
-        // Store token in localStorage
-        localStorage.setItem('token', token);
-        // Set user state directly
+      if (userData) {
         setUser(userData);
+        logger.log('User set from registration response');
       } else {
-        // If no token, check auth (might be cookie-based or needs separate login)
+        // If backend sets cookie on registration, verify auth
+        // Otherwise, user needs to login separately
+        logger.log('No user data in registration response, calling checkAuth...');
         await checkAuth();
       }
       
@@ -162,10 +125,12 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await authService.logout();
+      // Backend should clear the HttpOnly cookie
     } catch (error) {
       logger.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('token');
+      // Cookie-based auth: browser handles cookie clearing
+      // No need to clear localStorage
       setUser(null);
     }
   };

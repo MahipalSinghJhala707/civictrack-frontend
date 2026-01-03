@@ -38,18 +38,13 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Add Authorization header with token if available
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      // Log token usage (first few chars only for security)
-      console.log(`[API] Adding token to ${config.method?.toUpperCase()} ${config.url}`, {
-        tokenPreview: token.substring(0, 20) + '...',
-        tokenLength: token.length
-      });
-    } else {
-      console.warn(`[API] No token found for ${config.method?.toUpperCase()} ${config.url}`);
-    }
+    // Cookie-based auth: HttpOnly cookies are sent automatically by browser
+    // No need to add Authorization header - the cookie is sent with withCredentials: true
+    // Note: If backend requires both cookie AND Authorization header, uncomment below:
+    // const token = localStorage.getItem('token');
+    // if (token) {
+    //   config.headers.Authorization = `Bearer ${token}`;
+    // }
     
     // Add cache-busting headers for non-GET requests to ensure fresh data
     if (config.method && config.method.toLowerCase() !== 'get') {
@@ -70,8 +65,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear invalid token
-      localStorage.removeItem('token');
+      // Cookie-based auth: 401 means cookie expired or invalid
+      // Browser will handle cookie clearing automatically
       // Only redirect if not already on login/register page
       const currentPath = window.location.pathname;
       if (currentPath !== '/login' && currentPath !== '/register') {
