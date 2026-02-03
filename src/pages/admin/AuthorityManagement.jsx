@@ -3,12 +3,14 @@ import { adminService } from '../../services/admin.service';
 import { issueService } from '../../services/issue.service';
 import { handleApiError } from '../../utils/errorHandler';
 import { logger } from '../../utils/logger';
+import Pagination from '../../components/common/Pagination';
 
 const AuthorityManagement = () => {
   const [authorities, setAuthorities] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showIssuesModal, setShowIssuesModal] = useState(false);
   const [editingAuth, setEditingAuth] = useState(null);
@@ -22,19 +24,52 @@ const AuthorityManagement = () => {
     address: '',
   });
 
+  // City context for admin - default to all cities since no city API exists yet
+  const [selectedCityId, setSelectedCityId] = useState(null);
+  const [includeAllCities, setIncludeAllCities] = useState(true);
+  
+  // Soft-delete awareness
+  const [includeDeleted, setIncludeDeleted] = useState(false);
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const limit = 20;
+
   useEffect(() => {
-    loadAuthorities();
     loadDepartments();
     loadCategories();
   }, []);
 
+  // Reload when city, page, or includeDeleted changes
+  useEffect(() => {
+    loadAuthorities();
+  }, [selectedCityId, includeAllCities, page, includeDeleted]);
+
   const loadAuthorities = async () => {
     try {
       setLoading(true);
-      const response = await adminService.listAuthorities();
-      setAuthorities(response.data.data.authorities || []);
+      setError(null);
+      
+      const options = {
+        page,
+        limit,
+        cityId: selectedCityId || undefined,
+        includeAllCities: includeAllCities || undefined,
+        includeDeleted: includeDeleted || undefined,
+      };
+      
+      const response = await adminService.listAuthorities(options);
+      const data = response.data?.data?.authorities || response.data?.authorities || [];
+      const meta = response.data?.meta || response.data?.data?.meta || {};
+      
+      setAuthorities(data);
+      setTotalPages(meta.totalPages || 1);
+      setTotalCount(meta.totalCount || data.length);
     } catch (err) {
-      logger.error('Failed to load authorities:', handleApiError(err));
+      logger.error('Failed to load authorities:', err);
+      setError(handleApiError(err));
     } finally {
       setLoading(false);
     }
@@ -216,7 +251,12 @@ const AuthorityManagement = () => {
     }
   };
 
-  if (loading) {
+  const handleCityChange = (cityId) => {
+    setSelectedCityId(cityId);
+    setPage(1);
+  };
+
+  if (loading && authorities.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">Loading...</div>
@@ -224,10 +264,26 @@ const AuthorityManagement = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Authority Management</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Authority Management</h1>
+          <p className="text-gray-600 mt-1">
+            {totalCount} authorit{totalCount !== 1 ? 'ies' : 'y'}
+            {totalPages > 1 && ` • Page ${page} of ${totalPages}`}
+          </p>
+        </div>
         <button
           onClick={handleCreate}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
@@ -236,46 +292,96 @@ const AuthorityManagement = () => {
         </button>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white shadow rounded-lg p-4 mb-6">
+        {/* Soft-delete toggle */}
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="includeDeleted"
+            checked={includeDeleted}
+            onChange={(e) => {
+              setIncludeDeleted(e.target.checked);
+              setPage(1);
+            }}
+            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+          />
+          <label htmlFor="includeDeleted" className="text-sm text-gray-700">
+            Show deleted authorities
+          </label>
+          {includeDeleted && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              Showing deleted records
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {authorities.map((auth) => (
-            <li key={auth.id} className="px-6 py-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">{auth.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    {auth.city}, {auth.region}
-                  </p>
-                  {auth.department && (
-                    <p className="text-sm text-gray-500">Dept: {auth.department.name}</p>
-                  )}
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleManageIssues(auth)}
-                    className="text-green-600 hover:text-green-800 font-medium"
-                    title="Manage issue categories for this authority"
-                  >
-                    Manage Issues
-                  </button>
-                  <button
-                    onClick={() => handleEdit(auth)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(auth.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
+          {authorities.length === 0 ? (
+            <li className="px-6 py-8 text-center text-gray-500">
+              No authorities found.
             </li>
-          ))}
+          ) : (
+            authorities.map((auth) => (
+              <li key={auth.id} className={`px-6 py-4 ${auth.deleted_at ? 'bg-red-50 opacity-75' : ''}`}>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-medium text-gray-900">{auth.name}</h3>
+                      {auth.deleted_at && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                          Deleted
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {auth.city}, {auth.region}
+                    </p>
+                    {auth.department && (
+                      <p className="text-sm text-gray-500">Dept: {auth.department.name}</p>
+                    )}
+                  </div>
+                  <div className="flex space-x-2">
+                    {!auth.deleted_at && (
+                      <>
+                        <button
+                          onClick={() => handleManageIssues(auth)}
+                          className="text-green-600 hover:text-green-800 font-medium"
+                          title="Manage issue categories for this authority"
+                        >
+                          Manage Issues
+                        </button>
+                        <button
+                          onClick={() => handleEdit(auth)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(auth.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))
+          )}
         </ul>
       </div>
+
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        loading={loading}
+        className="mt-6"
+      />
 
       {showIssuesModal && editingAuth && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">

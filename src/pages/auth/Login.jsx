@@ -20,19 +20,12 @@ const Login = () => {
     }
     setError('');
     
-    // Validate email
+    // Basic frontend validation for immediate feedback
     if (!email || !email.trim()) {
       setError('Please enter your email address.');
       return;
     }
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address (e.g., name@example.com).');
-      return;
-    }
-    
-    // Validate password
     if (!password) {
       setError('Please enter your password.');
       return;
@@ -47,6 +40,7 @@ const Login = () => {
       navigate('/', { replace: true });
     } catch (err) {
       logger.error('Login failed:', err);
+      // Display backend error message directly - backend provides user-friendly messages
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       setLoading(false);

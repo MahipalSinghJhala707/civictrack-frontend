@@ -1,17 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { handleApiError } from '../../utils/errorHandler';
+import api from '../../services/api';
+import { logger } from '../../utils/logger';
 
 const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [cityId, setCityId] = useState('');
+  const [cities, setCities] = useState([]);
+  const [citiesLoading, setCitiesLoading] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch cities on form load
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        setCitiesLoading(true);
+        const response = await api.get('/api/auth/cities');
+        const citiesData = response.data?.data?.cities || response.data?.cities || [];
+        setCities(citiesData);
+      } catch (err) {
+        logger.error('Failed to load cities:', err);
+        setError('Failed to load cities. Please refresh the page.');
+      } finally {
+        setCitiesLoading(false);
+      }
+    };
+
+    loadCities();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,6 +56,12 @@ const Register = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address (e.g., name@example.com).');
+      return;
+    }
+
+    // Validate city
+    if (!cityId) {
+      setError('Please select your city.');
       return;
     }
 
@@ -63,7 +93,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await register({ name, email, password: trimmedPassword });
+      await register({ name, email, password: trimmedPassword, cityId: Number(cityId) });
       navigate('/', { replace: true });
     } catch (err) {
       setError(handleApiError(err));
@@ -119,6 +149,29 @@ const Register = () => {
               />
             </div>
             <div>
+              <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                City <span className="text-red-600">*</span>
+              </label>
+              <select
+                id="city"
+                name="city"
+                required
+                value={cityId}
+                onChange={(e) => setCityId(e.target.value)}
+                disabled={citiesLoading}
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
+              >
+                <option value="">
+                  {citiesLoading ? 'Loading cities...' : 'Select your city'}
+                </option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}, {city.state}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password <span className="text-red-600">*</span>
               </label>
@@ -155,7 +208,7 @@ const Register = () => {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || citiesLoading || !cityId}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Register'}

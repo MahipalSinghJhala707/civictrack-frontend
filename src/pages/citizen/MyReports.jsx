@@ -5,16 +5,21 @@ import { issueService } from '../../services/issue.service';
 import IssueCard from '../../components/issue/IssueCard';
 import { handleApiError } from '../../utils/errorHandler';
 import { logger } from '../../utils/logger';
+import Pagination from '../../components/common/Pagination';
 
 const MyReports = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [allReports, setAllReports] = useState([]);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     // Check for success message from navigation state
@@ -31,61 +36,46 @@ const MyReports = () => {
     if (user) {
       loadReports();
     }
-  }, [user]);
-
-  useEffect(() => {
-    if (user && allReports.length > 0) {
-      filterReports();
-    }
-  }, [statusFilter, allReports, user]);
+  }, [user, statusFilter, page]);
 
   const loadReports = async () => {
     try {
       setLoading(true);
-             const response = await issueService.listReports();
-             logger.log('API Response:', response);
-             logger.log('Response data:', response.data);
-             
-             // Try different possible response structures
-             const reportsData = response.data?.data?.reports || 
-                                response.data?.reports || 
-                                response.data?.data || 
-                                [];
-             
-             logger.log('All reports from API:', reportsData);
-             logger.log('Current user ID:', user?.id);
-             
-             // Filter reports to only show the current user's reports
-             const myReports = reportsData.filter(report => {
-               const reporterId = report.reporter_id || report.reporter?.id || report.reporterId;
-               const userId = user?.id;
-               logger.log(`Report ${report.id}: reporterId=${reporterId}, userId=${userId}, match=${reporterId === userId}`);
-               return reporterId === userId;
-             });
-             
-             logger.log('Filtered my reports:', myReports);
-      setAllReports(myReports);
-      setReports(myReports);
-           } catch (err) {
-             logger.error('Failed to load reports:', err);
-             logger.error('Error details:', err.response?.data);
+      
+      // Use backend's myIssues filter for server-side filtering
+      const options = {
+        page,
+        limit: 12, // Grid layout, multiples of 3
+        myIssues: true, // Backend filter for current user's reports
+        ...(statusFilter && { status: statusFilter })
+      };
+      
+      const response = await issueService.listReports(options);
+      logger.log('API Response:', response);
+      
+      const responseData = response.data?.data || response.data;
+      const reportsData = responseData?.reports || responseData || [];
+      const meta = response.data?.meta || {};
+      
+      logger.log('My reports from API:', reportsData);
+      
+      setReports(reportsData);
+      setTotalPages(meta.totalPages || 1);
+      setTotalCount(meta.totalCount || reportsData.length);
+    } catch (err) {
+      logger.error('Failed to load reports:', err);
+      logger.error('Error details:', err.response?.data);
     } finally {
       setLoading(false);
     }
   };
 
-  const filterReports = () => {
-    let filtered = [...allReports];
-
-    // Filter by status
-    if (statusFilter) {
-      filtered = filtered.filter(report => report.status === statusFilter);
-    }
-
-    setReports(filtered);
+  const handleStatusFilterChange = (status) => {
+    setStatusFilter(status);
+    setPage(1); // Reset to first page when filter changes
   };
 
-  if (loading) {
+  if (loading && reports.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">Loading...</div>
@@ -107,11 +97,18 @@ const MyReports = () => {
         </div>
       )}
       
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Reports</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">My Reports</h1>
+          <p className="text-gray-600 mt-1">
+            {totalCount} report{totalCount !== 1 ? 's' : ''}
+            {statusFilter && ` with status "${statusFilter}"`}
+            {totalPages > 1 && ` • Page ${page} of ${totalPages}`}
+          </p>
+        </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => handleStatusFilterChange(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-md"
         >
           <option value="">All Statuses</option>
@@ -139,11 +136,11 @@ const MyReports = () => {
           </svg>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No reports found</h3>
           <p className="text-gray-500 mb-4">
-            {allReports.length === 0
+            {totalCount === 0 && !statusFilter
               ? "You haven't reported any issues yet. Click the button below to report your first issue!"
               : 'No reports match the selected filter. Try changing the status filter.'}
           </p>
-          {allReports.length === 0 && (
+          {totalCount === 0 && !statusFilter && (
             <button
               onClick={() => navigate('/report')}
               className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
@@ -154,17 +151,19 @@ const MyReports = () => {
         </div>
       ) : (
         <>
-          <div className="mb-4 text-gray-600">
-            Showing <span className="font-semibold">{reports.length}</span> of{' '}
-            <span className="font-semibold">{allReports.length}</span> report
-            {allReports.length !== 1 ? 's' : ''}
-            {statusFilter && ` with status "${statusFilter}"`}
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {reports.map((report) => (
               <IssueCard key={report.id} report={report} onUpdate={loadReports} />
             ))}
           </div>
+          
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            loading={loading}
+            className="mt-6"
+          />
         </>
       )}
     </div>
@@ -172,4 +171,3 @@ const MyReports = () => {
 };
 
 export default MyReports;
-

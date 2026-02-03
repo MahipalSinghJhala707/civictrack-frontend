@@ -1,6 +1,60 @@
 import api from './api';
 import { logger } from '../utils/logger';
 
+/**
+ * Issue Service
+ * 
+ * BACKEND CONTRACT:
+ * - All list APIs are paginated and city-scoped
+ * - Returns { success, data, meta } where meta contains pagination info
+ * - Assignment outcomes are explicit (ASSIGNED, UNASSIGNED, etc.)
+ */
+
+/**
+ * Build query params with pagination
+ */
+const buildListParams = (options = {}) => {
+  const params = {};
+  
+  // Pagination (required)
+  params.page = options.page || 1;
+  params.limit = options.limit || 20;
+  
+  // Filters
+  if (options.status) {
+    params.status = options.status;
+  }
+  if (options.categoryId || options.issueId) {
+    params.issueId = options.categoryId || options.issueId;
+  }
+  if (options.cityId) {
+    params.cityId = options.cityId;
+  }
+  if (options.region) {
+    params.region = options.region;
+  }
+  
+  // myIssues filter (for citizens to see only their own reports)
+  if (options.myIssues) {
+    params.myIssues = true;
+  }
+  
+  // City context (for admin endpoints like flaggedReports)
+  if (options.includeAllCities) {
+    params.includeAllCities = true;
+  }
+  
+  // Sorting
+  if (options.sortBy) {
+    params.sortBy = options.sortBy;
+  }
+  if (options.sortOrder) {
+    params.sortOrder = options.sortOrder;
+  }
+  
+  return params;
+};
+
 export const issueService = {
   // Categories
   listCategories: () => api.get('/api/issues/categories'),
@@ -10,9 +64,7 @@ export const issueService = {
   
   // Authorities (for citizens to select when reporting issues)
   listAuthorities: () => {
-    // Try the issues endpoint first, fallback to admin endpoint
     return api.get('/api/issues/authorities').catch(() => {
-      // Fallback to admin endpoint (might work if backend allows it)
       return api.get('/api/admin/authorities');
     });
   },
@@ -26,8 +78,8 @@ export const issueService = {
     });
   },
   
-  listReports: (params = {}) => {
-    return api.get('/api/issues/reports', { params });
+  listReports: (options = {}) => {
+    return api.get('/api/issues/reports', { params: buildListParams(options) });
   },
   
   getReport: (reportId) => {
@@ -41,18 +93,15 @@ export const issueService = {
     api.post(`/api/issues/reports/${reportId}/flag`, { flagId }),
   
   deleteFlag: (flagId, reportId) => {
-    // Try DELETE on the flag resource with report ID context
     return api.delete(`/api/issues/reports/${reportId}/flags/${flagId}`)
       .catch((err) => {
-        // If nested endpoint doesn't work, try direct flag endpoint
         if (err.response?.status === 404 || err.response?.status === 405) {
           return api.delete(`/api/issues/reports/flags/${flagId}`)
             .catch((err2) => {
-              // If that also fails, try admin endpoint
               return api.delete(`/api/admin/flags/${flagId}`)
                 .catch((err3) => {
-                        logger.error('Failed to delete flag with all endpoints:', err3);
-                  throw new Error(`The API endpoint for deleting flags was not found. Please ensure the backend supports DELETE /api/issues/reports/${reportId}/flags/${flagId} or DELETE /api/admin/flags/${flagId}`);
+                  logger.error('Failed to delete flag with all endpoints:', err3);
+                  throw new Error(`The API endpoint for deleting flags was not found.`);
                 });
             });
         }
@@ -60,22 +109,25 @@ export const issueService = {
       });
   },
   
-  listFlaggedReports: () => api.get('/api/issues/reports/flagged'),
+  listFlaggedReports: (options = {}) => api.get('/api/issues/reports/flagged', { params: buildListParams(options) }),
   
   hideReport: (reportId) => {
-    // Try PATCH to update is_hidden field
     return api.patch(`/api/issues/reports/${reportId}`, { is_hidden: true })
       .catch((err) => {
-        // If PATCH doesn't work, try a dedicated hide endpoint
         if (err.response?.status === 404 || err.response?.status === 405) {
           return api.post(`/api/issues/reports/${reportId}/hide`)
             .catch((err2) => {
-                    logger.error('Failed to hide report with both endpoints:', err2);
-              throw new Error(`The API endpoint for hiding reports was not found. Please ensure the backend supports PATCH /api/issues/reports/${reportId} with { is_hidden: true } or POST /api/issues/reports/${reportId}/hide`);
+              logger.error('Failed to hide report with both endpoints:', err2);
+              throw new Error(`The API endpoint for hiding reports was not found.`);
             });
         }
         throw err;
       });
   },
+
+  // Assignment
+  getAssignmentHistory: (reportId) => api.get(`/api/issues/reports/${reportId}/assignments`),
+  
+  retryAssignment: (reportId) => api.post(`/api/issues/reports/${reportId}/assignments/retry`),
 };
 

@@ -8,6 +8,16 @@ import { handleApiError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { getImageUrl, handleImageError } from '../utils/imageHelper';
 
+/**
+ * Assignment outcome badge colors
+ */
+const ASSIGNMENT_OUTCOME_STYLES = {
+  ASSIGNED: 'bg-green-100 text-green-800',
+  UNASSIGNED: 'bg-yellow-100 text-yellow-800',
+  REASSIGNED: 'bg-blue-100 text-blue-800',
+  FAILED: 'bg-red-100 text-red-800',
+};
+
 const IssueDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -18,10 +28,21 @@ const IssueDetail = () => {
   const [comment, setComment] = useState('');
   const [updating, setUpdating] = useState(false);
   const [deletingFlagId, setDeletingFlagId] = useState(null);
+  
+  // Assignment state
+  const [assignmentHistory, setAssignmentHistory] = useState([]);
+  const [retryingAssignment, setRetryingAssignment] = useState(false);
 
   useEffect(() => {
     loadReport();
   }, [id]);
+
+  // Load assignment history when report is loaded and user is admin
+  useEffect(() => {
+    if (report && isAdmin) {
+      loadAssignmentHistory();
+    }
+  }, [report, isAdmin]);
 
   const loadReport = async () => {
     try {
@@ -77,6 +98,37 @@ const IssueDetail = () => {
       logger.error('Error details:', err.response?.data);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAssignmentHistory = async () => {
+    try {
+      const response = await issueService.getAssignmentHistory(id);
+      const history = response.data?.data?.assignments || 
+                     response.data?.assignments || 
+                     [];
+      setAssignmentHistory(history);
+    } catch (err) {
+      // Assignment history endpoint may not exist - silently fail
+      logger.log('Failed to load assignment history:', err);
+    }
+  };
+
+  const handleRetryAssignment = async () => {
+    try {
+      setRetryingAssignment(true);
+      const response = await issueService.retryAssignment(id);
+      const result = response.data?.data || response.data;
+      
+      alert(`Assignment ${result.outcome || 'completed'}. ${result.message || ''}`);
+      
+      // Reload report and assignment history
+      await loadReport();
+      await loadAssignmentHistory();
+    } catch (err) {
+      alert(handleApiError(err));
+    } finally {
+      setRetryingAssignment(false);
     }
   };
 
@@ -199,13 +251,70 @@ const IssueDetail = () => {
           </div>
         )}
 
-        {report.authority && (
-          <div className="mb-4">
-            <p className="text-sm text-gray-600">
-              Assigned to: {report.authority.name} - {report.authority.city}, {report.authority.region}
-            </p>
-          </div>
-        )}
+        {/* Assignment Section */}
+        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-2">Assignment</h3>
+          
+          {/* Current Assignment Status */}
+          {report.authority ? (
+            <div className="mb-2">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Assigned to:</span> {report.authority.name}
+                {report.authority.city && report.authority.region && (
+                  <span className="text-gray-500"> - {report.authority.city}, {report.authority.region}</span>
+                )}
+              </p>
+            </div>
+          ) : (
+            <div className="mb-2">
+              <span className={`inline-block px-2 py-1 rounded text-sm ${ASSIGNMENT_OUTCOME_STYLES.UNASSIGNED}`}>
+                Not Assigned
+              </span>
+            </div>
+          )}
+
+          {/* Assignment Outcome - from backend */}
+          {report.assignment_outcome && (
+            <div className="mb-2">
+              <span className={`inline-block px-2 py-1 rounded text-sm ${ASSIGNMENT_OUTCOME_STYLES[report.assignment_outcome] || 'bg-gray-100 text-gray-800'}`}>
+                {report.assignment_outcome}
+              </span>
+            </div>
+          )}
+
+          {/* Retry Assignment - Admin only, only when UNASSIGNED */}
+          {isAdmin && (!report.authority || report.assignment_outcome === 'UNASSIGNED') && (
+            <button
+              onClick={handleRetryAssignment}
+              disabled={retryingAssignment}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
+            >
+              {retryingAssignment ? 'Assigning...' : 'Retry Assignment'}
+            </button>
+          )}
+
+          {/* Assignment History - Admin only */}
+          {isAdmin && assignmentHistory.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold mb-2">Assignment History</h4>
+              <div className="space-y-2">
+                {assignmentHistory.map((entry, index) => (
+                  <div key={entry.id || index} className="text-sm text-gray-600 border-l-2 border-gray-300 pl-3">
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs ${ASSIGNMENT_OUTCOME_STYLES[entry.outcome] || 'bg-gray-100'}`}>
+                      {entry.outcome}
+                    </span>
+                    {entry.authority && (
+                      <span className="ml-2">{entry.authority.name}</span>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">
+                      {entry.triggered_by} • {formatDate(entry.created_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="mb-4 text-sm text-gray-500">
           <p>Created: {formatDate(report.created_at)}</p>

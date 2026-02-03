@@ -3,28 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { issueService } from '../services/issue.service';
 import IssueCard from '../components/issue/IssueCard';
+import Pagination from '../components/common/Pagination';
 import { handleApiError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 
 const IssueList = () => {
-  const { user, isCitizen } = useAuth();
+  const { isCitizen, isAdmin } = useAuth();
   const [reports, setReports] = useState([]);
-  const [allReports, setAllReports] = useState([]); // Store all reports for filtering
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Filters
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [categories, setCategories] = useState([]);
+  
+  // Pagination state (synced with backend)
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const limit = 20;
+  
   const navigate = useNavigate();
 
   useEffect(() => {
     loadCategories();
-    loadReports();
   }, []);
 
+  // Reload when filters or page change
   useEffect(() => {
-    filterReports();
-  }, [statusFilter, searchQuery, categoryFilter, allReports]);
+    loadReports();
+  }, [page, statusFilter, categoryFilter]);
 
   const loadCategories = async () => {
     try {
@@ -42,82 +52,68 @@ const IssueList = () => {
   const loadReports = async () => {
     try {
       setLoading(true);
-      const response = await issueService.listReports();
-      logger.log('API Response:', response);
-      logger.log('Response data:', response.data);
+      setError(null);
       
-      // Try different possible response structures
+      const options = {
+        page,
+        limit,
+        status: statusFilter || undefined,
+        categoryId: categoryFilter || undefined,
+        // Admin users need to pass includeAllCities to bypass city scope validation
+        includeAllCities: isAdmin ? true : undefined,
+      };
+      
+      const response = await issueService.listReports(options);
+      logger.log('API Response:', response);
+      
+      // Extract reports from response
       const reportsData = response.data?.data?.reports || 
                          response.data?.reports || 
                          response.data?.data || 
                          [];
       
-      logger.log('Extracted reports:', reportsData);
-      logger.log('Number of reports:', reportsData.length);
+      // Extract pagination meta from backend
+      const meta = response.data?.meta || response.data?.data?.meta || {};
       
-      setAllReports(reportsData);
       setReports(reportsData);
+      setTotalPages(meta.totalPages || 1);
+      setTotalCount(meta.totalCount || reportsData.length);
+      
+      logger.log('Loaded reports:', reportsData.length, 'Page:', page, 'Total:', meta.totalCount);
     } catch (err) {
       logger.error('Failed to load reports:', err);
-      logger.error('Error details:', err.response?.data);
-      logger.error('Error status:', err.response?.status);
-      const errorMessage = handleApiError(err);
-      logger.error('Error message:', errorMessage);
-      if (err.response?.status !== 200) {
-        alert('Failed to load issues: ' + errorMessage);
-      }
+      setError(handleApiError(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const filterReports = () => {
-    let filtered = [...allReports];
+  // Filter locally by search query (for immediate feedback)
+  const filteredReports = searchQuery.trim()
+    ? reports.filter(report => 
+        report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        report.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        report.region?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : reports;
 
-    // Filter by status
-    if (statusFilter) {
-      filtered = filtered.filter(report => report.status === statusFilter);
-    }
-
-    // Filter by category
-    if (categoryFilter) {
-      const categoryId = parseInt(categoryFilter);
-      filtered = filtered.filter(report => {
-        // Check all possible field names for the category/issue ID
-        const reportIssueId = report.issue_id || 
-                             report.issueId || 
-                             report.issue?.id || 
-                             null;
-        
-        // Convert to number if it's a string, then compare
-        const reportIdNum = reportIssueId ? parseInt(reportIssueId) : null;
-        
-        logger.log(`Filtering report ${report.id}: categoryId=${categoryId}, reportIssueId=${reportIssueId}, reportIdNum=${reportIdNum}, match=${reportIdNum === categoryId}`);
-        
-        return reportIdNum === categoryId;
-      });
-    }
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(report => 
-        report.title?.toLowerCase().includes(query) ||
-        report.description?.toLowerCase().includes(query) ||
-        report.city?.toLowerCase().includes(query) ||
-        report.region?.toLowerCase().includes(query)
-      );
-    }
-
-    setReports(filtered);
+  // Handle filter changes - reset to page 1
+  const handleStatusChange = (value) => {
+    setStatusFilter(value);
+    setPage(1);
   };
 
-  // Calculate statistics
-  const stats = {
-    total: allReports.length,
-    reported: allReports.filter(r => r.status === 'reported').length,
-    inProgress: allReports.filter(r => r.status === 'in_progress').length,
-    resolved: allReports.filter(r => r.status === 'resolved').length,
+  const handleCategoryChange = (value) => {
+    setCategoryFilter(value);
+    setPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setStatusFilter('');
+    setSearchQuery('');
+    setCategoryFilter('');
+    setPage(1);
   };
 
   if (loading) {
@@ -128,6 +124,16 @@ const IssueList = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading issues...</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
         </div>
       </div>
     );
@@ -146,21 +152,27 @@ const IssueList = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+          <div className="text-2xl font-bold text-gray-900">{totalCount}</div>
           <div className="text-sm text-gray-600">Total Issues</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-          <div className="text-2xl font-bold text-gray-900">{stats.reported}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {reports.filter(r => r.status === 'reported').length}
+          </div>
           <div className="text-sm text-gray-600">Reported</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
-          <div className="text-2xl font-bold text-gray-900">{stats.inProgress}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {reports.filter(r => r.status === 'in_progress').length}
+          </div>
           <div className="text-sm text-gray-600">In Progress</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <div className="text-2xl font-bold text-gray-900">{stats.resolved}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {reports.filter(r => r.status === 'resolved').length}
+          </div>
           <div className="text-sm text-gray-600">Resolved</div>
         </div>
       </div>
@@ -191,7 +203,7 @@ const IssueList = () => {
             <select
               id="status"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => handleStatusChange(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All Statuses</option>
@@ -210,7 +222,7 @@ const IssueList = () => {
             <select
               id="category"
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All Categories</option>
@@ -227,11 +239,7 @@ const IssueList = () => {
         {(statusFilter || searchQuery || categoryFilter) && (
           <div className="mt-4">
             <button
-              onClick={() => {
-                setStatusFilter('');
-                setSearchQuery('');
-                setCategoryFilter('');
-              }}
+              onClick={handleClearFilters}
               className="text-sm text-blue-600 hover:text-blue-800"
             >
               Clear all filters
@@ -243,10 +251,10 @@ const IssueList = () => {
       {/* Results Count */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <p className="text-gray-600">
-          {reports.length === allReports.length ? (
-            <>Showing all <span className="font-semibold">{reports.length}</span> issues</>
-          ) : (
-            <>Showing <span className="font-semibold">{reports.length}</span> of <span className="font-semibold">{allReports.length}</span> issues</>
+          Showing <span className="font-semibold">{filteredReports.length}</span> of{' '}
+          <span className="font-semibold">{totalCount}</span> issues
+          {totalPages > 1 && (
+            <span className="text-gray-500"> (Page {page} of {totalPages})</span>
           )}
         </p>
         {isCitizen && (
@@ -260,7 +268,7 @@ const IssueList = () => {
       </div>
 
       {/* Issues Grid */}
-      {reports.length === 0 ? (
+      {filteredReports.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <svg
             className="mx-auto h-12 w-12 text-gray-400 mb-4"
@@ -277,11 +285,11 @@ const IssueList = () => {
           </svg>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No issues found</h3>
           <p className="text-gray-500 mb-4">
-            {allReports.length === 0
+            {totalCount === 0
               ? 'There are no issues reported yet. Be the first to report an issue!'
               : 'Try adjusting your filters to see more results.'}
           </p>
-          {isCitizen && allReports.length === 0 && (
+          {isCitizen && totalCount === 0 && (
             <button
               onClick={() => navigate('/report')}
               className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
@@ -291,17 +299,28 @@ const IssueList = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reports.map((report) => (
-            <div
-              key={report.id}
-              onClick={() => navigate(`/issues/${report.id}`)}
-              className="cursor-pointer h-full"
-            >
-              <IssueCard report={report} onUpdate={loadReports} />
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredReports.map((report) => (
+              <div
+                key={report.id}
+                onClick={() => navigate(`/issues/${report.id}`)}
+                className="cursor-pointer h-full"
+              >
+                <IssueCard report={report} onUpdate={loadReports} />
+              </div>
+            ))}
+          </div>
+          
+          {/* Pagination */}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            loading={loading}
+            className="mt-8"
+          />
+        </>
       )}
     </div>
   );

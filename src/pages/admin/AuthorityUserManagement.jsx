@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { adminService } from '../../services/admin.service';
 import { handleApiError } from '../../utils/errorHandler';
 import { logger } from '../../utils/logger';
+import Pagination from '../../components/common/Pagination';
 
 const AuthorityUserManagement = () => {
   const [authorityUsers, setAuthorityUsers] = useState([]);
@@ -15,14 +16,28 @@ const AuthorityUserManagement = () => {
     authorityId: '',
   });
   const [formError, setFormError] = useState('');
+  const [error, setError] = useState('');
+  
+  // City context - default to all cities since no city API exists yet
+  const [selectedCityId, setSelectedCityId] = useState(null);
+  const [includeAllCities, setIncludeAllCities] = useState(true);
+  
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  
+  // Soft-delete toggle
+  const [includeDeleted, setIncludeDeleted] = useState(false);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedCityId, includeAllCities, page, includeDeleted]);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setError('');
       await Promise.all([
         loadAuthorityUsers(),
         loadUsers(),
@@ -30,6 +45,7 @@ const AuthorityUserManagement = () => {
       ]);
     } catch (err) {
       logger.error('Failed to load data:', err);
+      setError('Failed to load data: ' + handleApiError(err));
     } finally {
       setLoading(false);
     }
@@ -37,21 +53,31 @@ const AuthorityUserManagement = () => {
 
   const loadAuthorityUsers = async () => {
     try {
-      const response = await adminService.listAuthorityUsers();
-      const authUsersData = response.data?.data?.authorityUsers || 
-                           response.data?.authorityUsers || 
-                           response.data?.data || 
-                           [];
+      const options = {
+        page,
+        limit: 20,
+        includeDeleted,
+        ...(includeAllCities ? { includeAllCities: true } : { cityId: selectedCityId })
+      };
+      
+      const response = await adminService.listAuthorityUsers(options);
+      const responseData = response.data?.data || response.data;
+      const authUsersData = responseData?.authorityUsers || responseData || [];
+      const meta = response.data?.meta || {};
+      
       setAuthorityUsers(authUsersData);
+      setTotalPages(meta.totalPages || 1);
+      setTotalCount(meta.totalCount || authUsersData.length);
     } catch (err) {
       logger.error('Failed to load authority users:', err);
-      setFormError('Failed to load authority users: ' + handleApiError(err));
+      setError('Failed to load authority users: ' + handleApiError(err));
     }
   };
 
   const loadUsers = async () => {
     try {
-      const response = await adminService.listUsers();
+      const options = includeAllCities ? { includeAllCities: true } : { cityId: selectedCityId };
+      const response = await adminService.listUsers(options);
       const usersData = response.data?.data?.users || [];
       // Filter to only show users with 'authority' role
       const authorityRoleUsers = usersData.filter(user => 
@@ -65,11 +91,17 @@ const AuthorityUserManagement = () => {
 
   const loadAuthorities = async () => {
     try {
-      const response = await adminService.listAuthorities();
+      const options = includeAllCities ? { includeAllCities: true } : { cityId: selectedCityId };
+      const response = await adminService.listAuthorities(options);
       setAuthorities(response.data?.data?.authorities || []);
     } catch (err) {
       logger.error('Failed to load authorities:', err);
     }
+  };
+
+  const handleCityChange = (cityId) => {
+    setSelectedCityId(cityId);
+    setPage(1);
   };
 
   const handleCreate = () => {
@@ -135,7 +167,7 @@ const AuthorityUserManagement = () => {
     }
   };
 
-  if (loading) {
+  if (loading && authorityUsers.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">Loading...</div>
@@ -143,13 +175,24 @@ const AuthorityUserManagement = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Authority User Management</h1>
-          <p className="text-gray-600 mt-2">
-            Link users with 'authority' role to specific authorities
+          <p className="text-gray-600 mt-1">
+            {totalCount} link{totalCount !== 1 ? 's' : ''}
+            {totalPages > 1 && ` • Page ${page} of ${totalPages}`}
           </p>
         </div>
         <button
@@ -158,6 +201,31 @@ const AuthorityUserManagement = () => {
         >
           Link User to Authority
         </button>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white shadow rounded-lg p-4 mb-6">
+        {/* Soft-delete toggle */}
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="includeDeleted"
+            checked={includeDeleted}
+            onChange={(e) => {
+              setIncludeDeleted(e.target.checked);
+              setPage(1);
+            }}
+            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+          />
+          <label htmlFor="includeDeleted" className="text-sm text-gray-700">
+            Show deleted links
+          </label>
+          {includeDeleted && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              Showing deleted records
+            </span>
+          )}
+        </div>
       </div>
 
       {formError && (
@@ -196,12 +264,19 @@ const AuthorityUserManagement = () => {
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
             {authorityUsers.map((authUser) => (
-              <li key={authUser.id} className="px-6 py-4">
+              <li key={authUser.id} className={`px-6 py-4 ${authUser.deleted_at ? 'bg-red-50 opacity-75' : ''}`}>
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {authUser.user?.name || 'Unknown User'}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {authUser.user?.name || 'Unknown User'}
+                      </h3>
+                      {authUser.deleted_at && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                          Deleted
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500">
                       {authUser.user?.email || 'No email'}
                     </p>
@@ -218,18 +293,22 @@ const AuthorityUserManagement = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(authUser)}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(authUser.id)}
-                      className="text-red-600 hover:text-red-800 font-medium"
-                    >
-                      Unlink
-                    </button>
+                    {!authUser.deleted_at && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(authUser)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(authUser.id)}
+                          className="text-red-600 hover:text-red-800 font-medium"
+                        >
+                          Unlink
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </li>
@@ -237,6 +316,14 @@ const AuthorityUserManagement = () => {
           </ul>
         </div>
       )}
+
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        loading={loading}
+        className="mt-6"
+      />
 
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { adminService } from '../../services/admin.service';
 import { handleApiError } from '../../utils/errorHandler';
 import { logger } from '../../utils/logger';
+import Pagination from '../../components/common/Pagination';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -9,6 +10,7 @@ const UserManagement = () => {
   const [authorities, setAuthorities] = useState([]);
   const [authorityUsers, setAuthorityUsers] = useState([]); // Store authority-user mappings
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordChangeUser, setPasswordChangeUser] = useState(null);
@@ -27,6 +29,16 @@ const UserManagement = () => {
     authorityId: '',
   });
 
+  // City context for admin - default to all cities since no city API exists yet
+  const [selectedCityId, setSelectedCityId] = useState(null);
+  const [includeAllCities, setIncludeAllCities] = useState(true);
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const limit = 20;
+
   // Available roles - these should match your database
   const ROLES = [
     { id: 1, name: 'admin' },
@@ -36,14 +48,18 @@ const UserManagement = () => {
 
   useEffect(() => {
     loadAvailableRoles();
-    loadUsers();
     loadAuthorities();
     loadAuthorityUsers();
   }, []);
 
+  // Reload users when city or page changes
+  useEffect(() => {
+    loadUsers();
+  }, [selectedCityId, includeAllCities, page]);
+
   const loadAuthorities = async () => {
     try {
-      const response = await adminService.listAuthorities();
+      const response = await adminService.listAuthorities({ includeAllCities: true });
       setAuthorities(response.data?.data?.authorities || []);
     } catch (err) {
       logger.error('Failed to load authorities:', err);
@@ -90,9 +106,22 @@ const UserManagement = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await adminService.listUsers();
-      const usersData = response.data.data.users || [];
+      setError(null);
+      
+      const options = {
+        page,
+        limit,
+        cityId: selectedCityId || undefined,
+        includeAllCities: includeAllCities || undefined,
+      };
+      
+      const response = await adminService.listUsers(options);
+      const usersData = response.data?.data?.users || response.data?.users || [];
+      const meta = response.data?.meta || response.data?.data?.meta || {};
+      
       setUsers(usersData);
+      setTotalPages(meta.totalPages || 1);
+      setTotalCount(meta.totalCount || usersData.length);
       
       // Extract available roles from users if we haven't loaded them yet
       setAvailableRoles((currentRoles) => {
@@ -121,10 +150,16 @@ const UserManagement = () => {
         return currentRoles.length > 0 ? currentRoles : ROLES;
       });
     } catch (err) {
-      logger.error('Failed to load users:', handleApiError(err));
+      logger.error('Failed to load users:', err);
+      setError(handleApiError(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCityChange = (cityId) => {
+    setSelectedCityId(cityId);
+    setPage(1);
   };
 
   const handleCreate = () => {
@@ -427,7 +462,7 @@ const UserManagement = () => {
     }
   };
 
-  if (loading) {
+  if (loading && users.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">Loading...</div>
@@ -435,10 +470,26 @@ const UserManagement = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600 mt-1">
+            {totalCount} user{totalCount !== 1 ? 's' : ''}
+            {totalPages > 1 && ` • Page ${page} of ${totalPages}`}
+          </p>
+        </div>
         <button
           onClick={handleCreate}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
@@ -511,6 +562,15 @@ const UserManagement = () => {
           ))}
         </ul>
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        loading={loading}
+        className="mt-6"
+      />
 
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">

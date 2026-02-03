@@ -5,6 +5,7 @@ import IssueCard from '../../components/issue/IssueCard';
 import { handleApiError } from '../../utils/errorHandler';
 import { formatDate } from '../../utils/helpers';
 import { logger } from '../../utils/logger';
+import Pagination from '../../components/common/Pagination';
 
 const FlaggedReports = () => {
   const navigate = useNavigate();
@@ -12,25 +13,42 @@ const FlaggedReports = () => {
   const [loading, setLoading] = useState(true);
   const [hidingReportId, setHidingReportId] = useState(null);
   const [error, setError] = useState('');
+  
+  // City context - default to all cities since no city API exists yet
+  const [selectedCityId, setSelectedCityId] = useState(null);
+  const [includeAllCities, setIncludeAllCities] = useState(true);
+  
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     loadFlaggedReports();
-  }, []);
+  }, [selectedCityId, includeAllCities, page]);
 
   const loadFlaggedReports = async () => {
     try {
       setLoading(true);
       setError('');
-      const response = await issueService.listFlaggedReports();
+      
+      const options = {
+        page,
+        limit: 12, // Grid layout, multiples of 3
+        ...(includeAllCities ? { includeAllCities: true } : { cityId: selectedCityId })
+      };
+      
+      const response = await issueService.listFlaggedReports(options);
       logger.log('Flagged reports response:', response);
       
-      const reportsData = response.data?.data?.reports || 
-                         response.data?.reports || 
-                         response.data?.data || 
-                         [];
+      const responseData = response.data?.data || response.data;
+      const reportsData = responseData?.reports || responseData || [];
+      const meta = response.data?.meta || {};
       
       logger.log('Loaded flagged reports:', reportsData);
       setReports(reportsData);
+      setTotalPages(meta.totalPages || 1);
+      setTotalCount(meta.totalCount || reportsData.length);
     } catch (err) {
       logger.error('Failed to load flagged reports:', err);
       logger.error('Error response:', err.response);
@@ -38,6 +56,11 @@ const FlaggedReports = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCityChange = (cityId) => {
+    setSelectedCityId(cityId);
+    setPage(1);
   };
 
   const handleHideReport = async (reportId, reportTitle) => {
@@ -52,6 +75,7 @@ const FlaggedReports = () => {
       
       // Remove the hidden report from the list
       setReports(reports.filter(report => report.id !== reportId));
+      setTotalCount(prev => prev - 1);
       
       alert('Report hidden successfully. It will no longer appear in public listings.');
     } catch (err) {
@@ -64,7 +88,7 @@ const FlaggedReports = () => {
     }
   };
 
-  if (loading) {
+  if (loading && reports.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -80,10 +104,15 @@ const FlaggedReports = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Flagged Reports</h1>
-        <p className="text-gray-600 mt-2">
-          Review reports that have been flagged by users for inappropriate content or violations
-        </p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Flagged Reports</h1>
+            <p className="text-gray-600 mt-1">
+              {totalCount} flagged report{totalCount !== 1 ? 's' : ''} requiring review
+              {totalPages > 1 && ` • Page ${page} of ${totalPages}`}
+            </p>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -189,6 +218,14 @@ const FlaggedReports = () => {
               </div>
             ))}
           </div>
+          
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            loading={loading}
+            className="mt-6"
+          />
         </>
       )}
     </div>
@@ -196,4 +233,3 @@ const FlaggedReports = () => {
 };
 
 export default FlaggedReports;
-
