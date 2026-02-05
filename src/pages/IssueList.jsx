@@ -90,12 +90,22 @@ const IssueList = () => {
 
   // Filter locally by search query (for immediate feedback)
   const filteredReports = searchQuery.trim()
-    ? reports.filter(report => 
-        report.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.region?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? reports.filter(report => {
+        const query = searchQuery.toLowerCase();
+        const title = report.title?.toLowerCase() || '';
+        const description = report.description?.toLowerCase() || '';
+        // city is an object with name property
+        const cityName = report.city?.name?.toLowerCase() || '';
+        const region = report.region?.toLowerCase() || '';
+        // Also search in authority name if available
+        const authorityName = report.authority?.name?.toLowerCase() || '';
+        
+        return title.includes(query) ||
+               description.includes(query) ||
+               cityName.includes(query) ||
+               region.includes(query) ||
+               authorityName.includes(query);
+      })
     : reports;
 
   // Handle filter changes - reset to page 1

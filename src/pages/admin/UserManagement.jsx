@@ -68,7 +68,8 @@ const UserManagement = () => {
 
   const loadAuthorityUsers = async () => {
     try {
-      const response = await adminService.listAuthorityUsers();
+      // Include all cities to load authority-user links for all users
+      const response = await adminService.listAuthorityUsers({ includeAllCities: true });
       setAuthorityUsers(response.data?.data?.authorityUsers || 
                         response.data?.authorityUsers || 
                         response.data?.data || 
@@ -177,17 +178,29 @@ const UserManagement = () => {
     // Load current authority-user link if user has authority role
     let currentAuthorityId = '';
     if (user.roles?.some(r => r.name === 'authority')) {
-      const authUserLink = authorityUsers.find(au => au.user?.id === user.id || au.user_id === user.id);
+      // Use parseInt for consistent comparison (handles string vs number)
+      const userId = parseInt(user.id, 10);
+      const authUserLink = authorityUsers.find(au => {
+        const auUserId = parseInt(au.user?.id || au.user_id, 10);
+        return auUserId === userId;
+      });
       if (authUserLink) {
         currentAuthorityId = authUserLink.authority?.id || authUserLink.authority_id || '';
       }
     }
     
+    // Filter out admin role from roleIds - admin role is not editable via UI
+    // Ensure roleIds are numbers for consistent comparison
+    const editableRoleIds = user.roles
+      ?.filter(r => r.name !== 'admin')
+      .map(r => parseInt(r.id, 10))
+      .filter(id => !isNaN(id)) || [];
+    
     setFormData({
       name: user.name,
       email: user.email,
       password: '',
-      roleIds: user.roles?.map((r) => r.id) || [],
+      roleIds: editableRoleIds,
       authorityId: currentAuthorityId,
     });
     setShowModal(true);
@@ -315,10 +328,14 @@ const UserManagement = () => {
           throw userErr;
         }
         
-        // Update roles
+        // Update roles (pass authorityId if authority role is selected)
         try {
-          logger.log('Updating user roles with roleIds:', formData.roleIds);
-          await adminService.updateUserRoles(editingUser.id, formData.roleIds);
+          // Check if authority role (id: 2) is in the selected roles
+          const AUTHORITY_ROLE_ID = 2;
+          const hasAuthorityRole = formData.roleIds.includes(AUTHORITY_ROLE_ID);
+          const authorityIdToSend = hasAuthorityRole ? formData.authorityId : null;
+          logger.log('Updating user roles with roleIds:', formData.roleIds, 'hasAuthorityRole:', hasAuthorityRole, 'authorityId:', authorityIdToSend);
+          await adminService.updateUserRoles(editingUser.id, formData.roleIds, authorityIdToSend);
           logger.log('User roles updated successfully');
         } catch (roleErr) {
           logger.error('Failed to update user roles:', roleErr);
@@ -326,59 +343,7 @@ const UserManagement = () => {
           logger.error('Role update error response:', roleErr.response);
           throw roleErr;
         }
-
-        // Handle authority-user linking if user has authority role
-        const hasAuthorityRole = formData.roleIds.some(roleId => {
-          const role = availableRoles.find(r => r.id === roleId);
-          return role?.name === 'authority';
-        });
-
-        if (hasAuthorityRole && formData.authorityId) {
-          try {
-            // Check if authority-user link already exists
-            const existingLink = authorityUsers.find(au => au.user?.id === editingUser.id || au.user_id === editingUser.id);
-            
-            if (existingLink) {
-              // Update existing link
-              await adminService.updateAuthorityUser(existingLink.id, {
-                authorityId: parseInt(formData.authorityId),
-              });
-              logger.log('Authority-user link updated successfully');
-            } else {
-              // Create new link
-              await adminService.createAuthorityUser({
-                userId: editingUser.id,
-                authorityId: parseInt(formData.authorityId),
-              });
-              logger.log('Authority-user link created successfully');
-            }
-          } catch (authErr) {
-            logger.error('Failed to update authority-user link:', authErr);
-            // Don't throw - role update was successful, this is secondary
-          }
-        } else if (hasAuthorityRole && !formData.authorityId) {
-          // Remove authority-user link if authority role is selected but no authority chosen
-          const existingLink = authorityUsers.find(au => au.user?.id === editingUser.id || au.user_id === editingUser.id);
-          if (existingLink) {
-            try {
-              await adminService.deleteAuthorityUser(existingLink.id);
-              logger.log('Authority-user link removed');
-            } catch (authErr) {
-              logger.error('Failed to remove authority-user link:', authErr);
-            }
-          }
-        } else if (!hasAuthorityRole) {
-          // Remove authority-user link if user no longer has authority role
-          const existingLink = authorityUsers.find(au => au.user?.id === editingUser.id || au.user_id === editingUser.id);
-          if (existingLink) {
-            try {
-              await adminService.deleteAuthorityUser(existingLink.id);
-              logger.log('Authority-user link removed (user no longer has authority role)');
-            } catch (authErr) {
-              logger.error('Failed to remove authority-user link:', authErr);
-            }
-          }
-        }
+        // Note: Authority-user linking is now handled by the backend in updateUserRoles
       } else {
         logger.log('Creating new user:', formData);
         const userData = { ...formData };
@@ -439,10 +404,16 @@ const UserManagement = () => {
   const handleRoleChange = (roleId) => {
     const roleIdNum = parseInt(roleId);
     setFormData((prev) => {
+      // Check if we're unchecking the authority role
+      const authorityRole = availableRoles.find(r => r.name === 'authority');
+      const isRemovingAuthority = authorityRole && roleIdNum === authorityRole.id && prev.roleIds.includes(roleIdNum);
+      
       if (prev.roleIds.includes(roleIdNum)) {
         return {
           ...prev,
           roleIds: prev.roleIds.filter((id) => id !== roleIdNum),
+          // Clear authorityId if removing authority role
+          authorityId: isRemovingAuthority ? '' : prev.authorityId,
         };
       } else {
         return {
@@ -522,7 +493,12 @@ const UserManagement = () => {
                   {user.roles?.some(r => r.name === 'authority') && (
                     <div className="mt-2">
                       {(() => {
-                        const authUserLink = authorityUsers.find(au => au.user?.id === user.id || au.user_id === user.id);
+                        // Use parseInt for consistent comparison (handles string vs number)
+                        const userId = parseInt(user.id, 10);
+                        const authUserLink = authorityUsers.find(au => {
+                          const auUserId = parseInt(au.user?.id || au.user_id, 10);
+                          return auUserId === userId;
+                        });
                         return authUserLink ? (
                           <span className="text-xs text-blue-600">
                             Authority: {authUserLink.authority?.name || 'Unknown'}
@@ -653,23 +629,61 @@ const UserManagement = () => {
               }) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Authority
+                    Authority <span className="text-red-600">*</span>
                   </label>
-                  <select
-                    value={formData.authorityId}
-                    onChange={(e) => setFormData({ ...formData, authorityId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select an authority (optional)</option>
-                    {authorities.map((auth) => (
-                      <option key={auth.id} value={auth.id}>
-                        {auth.name} - {auth.city}, {auth.region}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Select which authority this user belongs to. This will link the user to the authority for issue assignments.
-                  </p>
+                  {(() => {
+                    // Filter authorities by user's city when editing
+                    // User object may have city as nested object (city.name) or direct city_id
+                    const userCityId = editingUser?.city_id || editingUser?.city?.id;
+                    const userCityName = editingUser?.city?.name;
+                    const hasUserCity = !!userCityId;
+                    
+                    // If user has a city, filter authorities to that city
+                    // If user has no city, show all authorities (user will be auto-assigned to authority's city)
+                    const filteredAuthorities = hasUserCity
+                      ? authorities.filter(auth => {
+                          // Match by city_id (convert both to numbers for consistent comparison)
+                          const authCityId = auth.city_id;
+                          if (userCityId && authCityId) {
+                            return parseInt(authCityId, 10) === parseInt(userCityId, 10);
+                          }
+                          return true;
+                        })
+                      : authorities;
+                    
+                    return (
+                      <>
+                        {editingUser && !hasUserCity && (
+                          <p className="mb-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                            ℹ️ This user has no city assigned. Selecting an authority will automatically assign the user to that authority's city.
+                          </p>
+                        )}
+                        <select
+                          value={formData.authorityId}
+                          onChange={(e) => setFormData({ ...formData, authorityId: e.target.value })}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Select an authority</option>
+                          {filteredAuthorities.map((auth) => (
+                            <option key={auth.id} value={auth.id}>
+                              {auth.name} - {auth.city}, {auth.region}
+                            </option>
+                          ))}
+                        </select>
+                        {editingUser && hasUserCity && filteredAuthorities.length === 0 && (
+                          <p className="mt-1 text-sm text-amber-600">
+                            No authorities available for this user's city ({userCityName || `ID: ${userCityId}`}). Please create an authority for this city first.
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs text-gray-500">
+                          {editingUser && hasUserCity 
+                            ? `Showing authorities for ${userCityName || `city ID ${userCityId}`}.` 
+                            : 'Select which authority this user belongs to.'}
+                        </p>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
               <div className="flex justify-end space-x-2">

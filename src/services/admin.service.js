@@ -51,11 +51,15 @@ export const adminService = {
   listUsers: (options = {}) => api.get('/api/admin/users', { params: buildAdminParams(options) }),
   createUser: (data) => api.post('/api/admin/users', data),
   updateUser: (userId, data) => api.patch(`/api/admin/users/${userId}`, data),
-  updateUserRoles: (userId, roleIds) => {
-    logger.log('updateUserRoles called with:', { userId, roleIds });
+  updateUserRoles: (userId, roleIds, authorityId = null) => {
+    logger.log('updateUserRoles called with:', { userId, roleIds, authorityId });
     const roleIdsArray = Array.isArray(roleIds) ? roleIds.map(id => parseInt(id)) : [parseInt(roleIds)];
-    logger.log('Sending roleIds:', roleIdsArray);
-    return api.patch(`/api/admin/users/${userId}/roles`, { roleIds: roleIdsArray });
+    logger.log('Sending roleIds:', roleIdsArray, 'authorityId:', authorityId);
+    const payload = { roleIds: roleIdsArray };
+    if (authorityId) {
+      payload.authorityId = parseInt(authorityId);
+    }
+    return api.patch(`/api/admin/users/${userId}/roles`, payload);
   },
   deleteUser: (userId) => api.delete(`/api/admin/users/${userId}`),
   changeUserPassword: (userId, newPassword) =>
