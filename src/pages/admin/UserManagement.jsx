@@ -40,8 +40,8 @@ const UserManagement = () => {
   const limit = 20;
 
   // Available roles - these should match your database
+  // Note: Admin role is intentionally excluded - admins can only be created via backend/database
   const ROLES = [
-    { id: 1, name: 'admin' },
     { id: 2, name: 'authority' },
     { id: 3, name: 'citizen' },
   ];
@@ -88,7 +88,9 @@ const UserManagement = () => {
                          response.data?.data || 
                          [];
         if (rolesData.length > 0) {
-          setAvailableRoles(rolesData);
+          // Filter out admin role - admins can only be created via backend/database
+          const filteredRoles = rolesData.filter(role => role.name !== 'admin');
+          setAvailableRoles(filteredRoles.length > 0 ? filteredRoles : ROLES);
         } else {
           setAvailableRoles(ROLES);
         }
@@ -134,7 +136,8 @@ const UserManagement = () => {
           usersData.forEach((user) => {
             if (user.roles && Array.isArray(user.roles)) {
               user.roles.forEach((role) => {
-                if (!allRoles.has(role.id)) {
+                // Skip admin role - admins can only be created via backend/database
+                if (role.name !== 'admin' && !allRoles.has(role.id)) {
                   allRoles.set(role.id, role);
                 }
               });
