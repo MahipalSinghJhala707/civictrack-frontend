@@ -5,7 +5,7 @@ import { handleApiError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('password');
   const [formData, setFormData] = useState({
     oldPassword: '',
@@ -99,15 +99,9 @@ const Profile = () => {
         trimmedNewPassword
       );
       
-      setSuccess('Password changed successfully. You will be logged out for security. Please log in again with your new password.');
+      setSuccess('Password changed successfully!');
       setFormData({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setPasswordStrength(0);
-
-      // Log out after 2 seconds for security
-      setTimeout(async () => {
-        await logout();
-        window.location.href = '/login';
-      }, 2000);
     } catch (err) {
       logger.error('Failed to change password:', err);
       const errorMessage = handleApiError(err);

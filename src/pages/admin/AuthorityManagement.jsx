@@ -9,6 +9,7 @@ const AuthorityManagement = () => {
   const [authorities, setAuthorities] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -18,7 +19,7 @@ const AuthorityManagement = () => {
   const [savingIssues, setSavingIssues] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    city: '',
+    cityId: '',
     region: '',
     departmentId: '',
     address: '',
@@ -40,6 +41,7 @@ const AuthorityManagement = () => {
   useEffect(() => {
     loadDepartments();
     loadCategories();
+    loadCities();
   }, []);
 
   // Reload when city, page, or includeDeleted changes
@@ -96,9 +98,18 @@ const AuthorityManagement = () => {
     }
   };
 
+  const loadCities = async () => {
+    try {
+      const response = await adminService.listCities();
+      setCities(response.data?.data?.cities || response.data?.cities || []);
+    } catch (err) {
+      logger.error('Failed to load cities:', err);
+    }
+  };
+
   const handleCreate = () => {
     setEditingAuth(null);
-    setFormData({ name: '', city: '', region: '', departmentId: '', address: '' });
+    setFormData({ name: '', cityId: '', region: '', departmentId: '', address: '' });
     setShowModal(true);
   };
 
@@ -106,7 +117,7 @@ const AuthorityManagement = () => {
     setEditingAuth(auth);
     setFormData({
       name: auth.name,
-      city: auth.city,
+      cityId: auth.city_id || '',
       region: auth.region,
       departmentId: auth.department_id || '',
       address: auth.address || '',
@@ -129,8 +140,8 @@ const AuthorityManagement = () => {
     }
     
     // Validate city
-    if (!formData.city || !formData.city.trim()) {
-      alert('Please enter the city where this authority is located.');
+    if (!formData.cityId) {
+      alert('Please select the city where this authority is located.');
       return;
     }
     
@@ -142,8 +153,11 @@ const AuthorityManagement = () => {
     
     try {
       const data = {
-        ...formData,
+        name: formData.name.trim(),
+        cityId: parseInt(formData.cityId),
+        region: formData.region.trim(),
         departmentId: formData.departmentId ? parseInt(formData.departmentId) : undefined,
+        address: formData.address?.trim() || undefined,
       };
       if (editingAuth) {
         await adminService.updateAuthority(editingAuth.id, data);
@@ -470,13 +484,19 @@ const AuthorityManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   City <span className="text-red-600">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                <select
+                  value={formData.cityId}
+                  onChange={(e) => setFormData({ ...formData, cityId: e.target.value })}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
+                >
+                  <option value="">Select a city</option>
+                  {cities.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

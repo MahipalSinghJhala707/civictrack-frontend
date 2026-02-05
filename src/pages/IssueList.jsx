@@ -27,15 +27,6 @@ const IssueList = () => {
   
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  // Reload when filters or page change
-  useEffect(() => {
-    loadReports();
-  }, [page, statusFilter, categoryFilter]);
-
   const loadCategories = async () => {
     try {
       const response = await issueService.listCategories();
@@ -88,25 +79,26 @@ const IssueList = () => {
     }
   };
 
-  // Filter locally by search query (for immediate feedback)
-  const filteredReports = searchQuery.trim()
-    ? reports.filter(report => {
-        const query = searchQuery.toLowerCase();
-        const title = report.title?.toLowerCase() || '';
-        const description = report.description?.toLowerCase() || '';
-        // city is an object with name property
-        const cityName = report.city?.name?.toLowerCase() || '';
-        const region = report.region?.toLowerCase() || '';
-        // Also search in authority name if available
-        const authorityName = report.authority?.name?.toLowerCase() || '';
-        
-        return title.includes(query) ||
-               description.includes(query) ||
-               cityName.includes(query) ||
-               region.includes(query) ||
-               authorityName.includes(query);
-      })
-    : reports;
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  // Reload when filters or page change
+  useEffect(() => {
+    loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, statusFilter, categoryFilter, isAdmin]);
+
+  // Client-side search filtering
+  const filteredReports = reports.filter((report) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    const title = (report.title || '').toLowerCase();
+    const description = (report.description || '').toLowerCase();
+    const region = (report.region || '').toLowerCase();
+    const cityName = (report.city?.name || '').toLowerCase();
+    return title.includes(query) || description.includes(query) || region.includes(query) || cityName.includes(query);
+  });
 
   // Handle filter changes - reset to page 1
   const handleStatusChange = (value) => {
@@ -169,19 +161,19 @@ const IssueList = () => {
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
           <div className="text-2xl font-bold text-gray-900">
-            {reports.filter(r => r.status === 'reported').length}
+            {filteredReports.filter(r => r.status === 'reported').length}
           </div>
           <div className="text-sm text-gray-600">Reported</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
           <div className="text-2xl font-bold text-gray-900">
-            {reports.filter(r => r.status === 'in_progress').length}
+            {filteredReports.filter(r => r.status === 'in_progress').length}
           </div>
           <div className="text-sm text-gray-600">In Progress</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
           <div className="text-2xl font-bold text-gray-900">
-            {reports.filter(r => r.status === 'resolved').length}
+            {filteredReports.filter(r => r.status === 'resolved').length}
           </div>
           <div className="text-sm text-gray-600">Resolved</div>
         </div>
@@ -200,7 +192,7 @@ const IssueList = () => {
               id="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by title, description, city..."
+              placeholder="Search by title, description, region..."
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

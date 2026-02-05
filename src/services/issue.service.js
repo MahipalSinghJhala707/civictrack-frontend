@@ -97,7 +97,7 @@ export const issueService = {
       .catch((err) => {
         if (err.response?.status === 404 || err.response?.status === 405) {
           return api.delete(`/api/issues/reports/flags/${flagId}`)
-            .catch((err2) => {
+            .catch(() => {
               return api.delete(`/api/admin/flags/${flagId}`)
                 .catch((err3) => {
                   logger.error('Failed to delete flag with all endpoints:', err3);

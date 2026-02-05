@@ -317,8 +317,8 @@ const IssueDetail = () => {
         </div>
 
         <div className="mb-4 text-sm text-gray-500">
-          <p>Created: {formatDate(report.created_at)}</p>
-          <p>Updated: {formatDate(report.updated_at)}</p>
+          <p>Created: {formatDate(report.created_at || report.createdAt)}</p>
+          <p>Updated: {formatDate(report.updated_at || report.updatedAt)}</p>
         </div>
 
         {(isAuthority || isAdmin) && (
@@ -367,19 +367,36 @@ const IssueDetail = () => {
           <div className="border-t pt-4 mt-4">
             <h3 className="text-lg font-semibold mb-4">Status History</h3>
             <div className="space-y-2">
-              {report.logs.map((log) => (
+              {report.logs.map((log) => {
+                // Check if comment is a JSON metadata object (assignment info) - don't display raw JSON
+                const isJsonComment = log.comment && (
+                  log.comment.startsWith('{') || 
+                  log.comment.startsWith('[')
+                );
+                
+                // Format status display - replace "authority:ID" with authority name
+                const formatStatus = (status) => {
+                  if (!status) return status;
+                  if (status.startsWith('authority:')) {
+                    // Show assigned authority name if available
+                    return report.authority?.name ? `Assigned to ${report.authority.name}` : 'Assigned';
+                  }
+                  return status;
+                };
+                
+                return (
                 <div key={log.id} className="text-sm text-gray-600 border-l-2 pl-4">
                   <p>
                     {log.from_status && log.to_status ? (
-                      <>Status changed from <strong>{log.from_status}</strong> to <strong>{log.to_status}</strong></>
+                      <>Status changed from <strong>{formatStatus(log.from_status)}</strong> to <strong>{formatStatus(log.to_status)}</strong></>
                     ) : (
                       <>Status updated</>
                     )}
                   </p>
-                  {log.comment && <p className="text-gray-500 mt-1">{log.comment}</p>}
+                  {log.comment && !isJsonComment && <p className="text-gray-500 mt-1">{log.comment}</p>}
                   <p className="text-gray-400 text-xs mt-1">{formatDate(log.created_at)}</p>
                 </div>
-              ))}
+              );})}
             </div>
           </div>
         )}

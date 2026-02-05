@@ -155,19 +155,20 @@ export const AuthProvider = ({ children }) => {
     logger.log('User roles:', user.roles);
     logger.log('User role property:', user.role);
     
-    // Handle different possible role structures
+    // PRIORITY: If user has a direct role property (from login/token), use it first
+    // This is the active role the user logged in with
+    if (user.role) {
+      const roleValue = typeof user.role === 'string' ? user.role.toLowerCase() : user.role;
+      logger.log('Extracted role from role property:', roleValue);
+      return roleValue;
+    }
+    
+    // Fallback: Handle roles array (for backward compatibility)
     if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
       // If roles is an array of objects with 'name' property
       const roleName = user.roles[0]?.name || user.roles[0];
       logger.log('Extracted role from roles array:', roleName);
       return typeof roleName === 'string' ? roleName.toLowerCase() : roleName;
-    }
-    
-    // If user has a direct role property
-    if (user.role) {
-      const roleValue = typeof user.role === 'string' ? user.role.toLowerCase() : user.role;
-      logger.log('Extracted role from role property:', roleValue);
-      return roleValue;
     }
     
     logger.warn('No role found for user - user object:', user);
