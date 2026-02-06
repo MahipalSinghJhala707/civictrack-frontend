@@ -32,12 +32,14 @@ const Header = () => {
           <nav className="hidden md:flex md:items-center md:space-x-4 md:flex-1 md:justify-center md:ml-8">
             {user && (
               <>
-                <Link
-                  to="/"
-                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Home
-                </Link>
+                {!isAuthority && (
+                  <Link
+                    to="/"
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Home
+                  </Link>
+                )}
                 {isCitizen && (
                   <>
                     <Link
@@ -174,13 +176,15 @@ const Header = () => {
             <div className="space-y-1">
               {user ? (
                 <>
-                  <Link
-                    to="/"
-                    onClick={handleLinkClick}
-                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors"
-                  >
-                    Home
-                  </Link>
+                  {!isAuthority && (
+                    <Link
+                      to="/"
+                      onClick={handleLinkClick}
+                      className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors"
+                    >
+                      Home
+                    </Link>
+                  )}
                   {isCitizen && (
                     <>
                       <Link
