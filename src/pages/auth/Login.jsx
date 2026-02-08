@@ -37,7 +37,7 @@ const Login = () => {
       const response = await login(email, password, role);
       logger.log('Login successful, response:', response);
       setLoading(false);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       logger.error('Login failed:', err);
       // Display backend error message directly - backend provides user-friendly messages

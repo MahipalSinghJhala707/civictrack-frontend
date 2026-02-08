@@ -67,13 +67,14 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Cookie-based auth: 401 means cookie expired or invalid
       // Browser will handle cookie clearing automatically
-      // Only redirect if not already on login/register page
+      // Only redirect if not on public pages (login, register, home)
       // Also don't redirect for password change endpoint (401 means wrong current password)
       const currentPath = window.location.pathname;
       const requestUrl = error.config?.url || '';
       const isPasswordChange = requestUrl.includes('/change-password');
+      const isPublicPage = currentPath === '/' || currentPath === '/login' || currentPath === '/register';
       
-      if (!isPasswordChange && currentPath !== '/login' && currentPath !== '/register') {
+      if (!isPasswordChange && !isPublicPage) {
         window.location.href = '/login';
       }
     }

@@ -34,7 +34,7 @@ const Header = () => {
               <>
                 {!isAuthority && (
                   <Link
-                    to="/"
+                    to="/dashboard"
                     className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                   >
                     Home
@@ -178,7 +178,7 @@ const Header = () => {
                 <>
                   {!isAuthority && (
                     <Link
-                      to="/"
+                      to="/dashboard"
                       onClick={handleLinkClick}
                       className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors"
                     >

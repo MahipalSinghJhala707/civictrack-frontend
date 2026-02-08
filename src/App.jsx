@@ -30,13 +30,14 @@ import CategoryManagement from './pages/admin/CategoryManagement';
 import FlaggedReports from './pages/admin/FlaggedReports';
 
 // Common Pages
+import Home from './pages/Home';
 import IssueList from './pages/IssueList';
 import IssueDetail from './pages/IssueDetail';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 
-// Home page component that shows different content based on user role
-const HomePage = () => {
+// Dashboard component that shows different content based on user role
+const RoleDashboard = () => {
   const { isAuthority, loading } = useAuth();
 
   if (loading) {
@@ -60,15 +61,16 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public Routes */}
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Protected Routes - Home page */}
+      {/* Protected Routes - Dashboard */}
       <Route
-        path="/"
+        path="/dashboard"
         element={
           <ProtectedRoute>
-            <HomePage />
+            <RoleDashboard />
           </ProtectedRoute>
         }
       />

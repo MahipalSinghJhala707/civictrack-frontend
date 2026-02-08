@@ -94,7 +94,7 @@ const Register = () => {
 
     try {
       await register({ name, email, password: trimmedPassword, cityId: Number(cityId) });
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(handleApiError(err));
     } finally {
